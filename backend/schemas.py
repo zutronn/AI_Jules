@@ -9,6 +9,8 @@ class ArenaBase(BaseModel):
     is_active: bool = True
     tags: Optional[str] = ""
     description: Optional[str] = ""
+    rule: Optional[str] = ""
+    prompt_text: Optional[str] = ""
 
 class ArenaCreate(ArenaBase):
     pass
@@ -20,6 +22,8 @@ class ArenaUpdate(BaseModel):
     is_active: Optional[bool] = None
     tags: Optional[str] = None
     description: Optional[str] = None
+    rule: Optional[str] = None
+    prompt_text: Optional[str] = None
 
 class Arena(ArenaBase):
     id: int

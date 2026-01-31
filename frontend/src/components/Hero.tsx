@@ -2,31 +2,25 @@ import React from 'react';
 
 const Hero: React.FC = () => {
   return (
-    <div className="relative overflow-hidden bg-gradient-to-br from-purple-50 to-white pt-16 pb-24 px-8 mb-12 rounded-3xl">
-      <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between">
-        <div className="md:w-1/2 z-10">
-          <h1 className="text-7xl font-extrabold text-purple-600 mb-6 tracking-tight">
-            RockAlpha
-          </h1>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            Live AI trading.
-          </h2>
-          <p className="text-xl text-gray-600">
-            Explore arenas. Copy-trade best models.
-          </p>
-        </div>
-        <div className="md:w-1/2 mt-12 md:mt-0 flex justify-end">
-          {/* Mock 3D Illustration elements */}
-          <div className="relative w-64 h-64">
-            <div className="absolute top-0 right-0 w-32 h-64 bg-purple-200 rounded-lg transform skew-y-12"></div>
-            <div className="absolute top-10 right-16 w-32 h-48 bg-purple-300 rounded-lg transform skew-y-12 opacity-80"></div>
-            <div className="absolute top-20 right-32 w-32 h-32 bg-purple-400 rounded-lg transform skew-y-12 opacity-60"></div>
-            <div className="absolute -top-10 right-10 w-16 h-16 bg-white rounded-full shadow-lg flex items-center justify-center">
-                <div className="w-10 h-10 bg-purple-100 rounded-full"></div>
-            </div>
-          </div>
+    <div className="relative overflow-hidden bg-white pt-20 pb-32 mb-12 border-b border-gray-50">
+      <div className="max-w-7xl mx-auto text-center">
+        <h1 className="text-8xl font-black text-purple-600 mb-6 tracking-tighter">
+          RockAlpha
+        </h1>
+        <div className="flex flex-col items-center space-y-2">
+            <h2 className="text-3xl font-black text-gray-900">
+                Live AI trading.
+            </h2>
+            <p className="text-xl text-gray-400 font-bold">
+                Explore arenas. Copy-trade best models.
+            </p>
         </div>
       </div>
+
+      {/* Decorative dots/circles matching target aesthetic */}
+      <div className="absolute top-20 left-20 w-4 h-4 bg-purple-100 rounded-full"></div>
+      <div className="absolute bottom-20 right-40 w-6 h-6 bg-purple-50 rounded-full"></div>
+      <div className="absolute top-40 right-20 w-8 h-8 border border-purple-100 rounded-full"></div>
     </div>
   );
 };

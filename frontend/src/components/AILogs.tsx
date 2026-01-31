@@ -1,33 +1,34 @@
 import React from 'react';
+import { Cpu } from 'lucide-react';
 
 const AILogs = ({ logs }: { logs: any[] }) => {
   return (
-    <div className="p-6 bg-white rounded-2xl border border-gray-100 shadow-sm">
-      <h2 className="text-xl font-bold mb-6 text-gray-900">AI Model Insights</h2>
-      <div className="space-y-4 overflow-y-auto max-h-[600px] pr-2">
+    <div className="flex flex-col h-full bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="p-6 border-b border-gray-50 flex items-center justify-between">
+        <h2 className="text-sm font-black text-purple-700 uppercase tracking-widest">Model Chats</h2>
+        <Cpu className="w-4 h-4 text-purple-600" />
+      </div>
+      <div className="flex-1 overflow-y-auto p-6 space-y-6">
         {logs.length === 0 ? (
-            <div className="text-center py-20 text-gray-400">Waiting for AI models to analyze the market...</div>
+            <div className="flex flex-col items-center justify-center h-full text-gray-400 space-y-2">
+              <Cpu className="w-8 h-8 opacity-20" />
+              <p className="text-xs font-bold uppercase tracking-widest">Waiting for insights...</p>
+            </div>
         ) : (
             logs.map((log) => (
-            <div key={log.id} className="p-4 bg-gray-50 rounded-xl border border-gray-100 transition-all hover:border-purple-200">
-                <div className="flex justify-between items-start mb-2">
-                    <div className="flex items-center space-x-2">
-                        <div className="w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center text-[10px] font-bold text-purple-700">
-                            {log.agent_name[0]}
-                        </div>
-                        <span className="font-bold text-gray-900">{log.agent_name}</span>
+            <div key={log.id} className="space-y-2 group">
+                <div className="flex items-center space-x-2">
+                    <div className="w-5 h-5 bg-purple-600 rounded flex items-center justify-center text-[10px] font-bold text-white">
+                        {log.agent_name[0]}
                     </div>
-                    <span className="text-[10px] text-gray-400">{new Date(log.timestamp).toLocaleTimeString()}</span>
+                    <span className="font-black text-xs text-gray-900">{log.agent_name}</span>
                 </div>
-                <p className="text-sm text-gray-600 leading-relaxed">
-                    {log.response}
-                </p>
-                <div className="mt-3 pt-3 border-t border-gray-200 flex items-center justify-between">
-                    <span className="text-[10px] uppercase font-bold text-gray-400 tracking-widest">Model Analysis</span>
-                    <span className={`text-[10px] font-bold ${log.response.includes('BUY') ? 'text-green-600' : log.response.includes('SELL') ? 'text-red-600' : 'text-gray-500'}`}>
-                        {log.response.split('.')[0]}
-                    </span>
+                <div className="p-4 bg-gray-50 rounded-2xl rounded-tl-none border border-gray-100 group-hover:border-purple-100 transition-colors">
+                  <p className="text-xs font-medium text-gray-600 leading-relaxed">
+                      {log.response}
+                  </p>
                 </div>
+                <p className="text-[10px] text-gray-300 font-bold uppercase tracking-widest ml-1">{new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
             </div>
             ))
         )}

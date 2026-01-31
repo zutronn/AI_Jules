@@ -13,6 +13,8 @@ class Arena(Base):
     is_active = Column(Boolean, default=True)
     tags = Column(String, default="") # Comma separated
     description = Column(String, default="")
+    rule = Column(String, default="")
+    prompt_text = Column(Text, default="")
 
 class Trade(Base):
     __tablename__ = "trades"

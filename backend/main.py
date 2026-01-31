@@ -17,10 +17,38 @@ def seed_data():
     db = database.SessionLocal()
     if db.query(models.Arena).count() == 0:
         arenas = [
-            models.Arena(name="AI PMs Storm Cup", tickers="AAPL,MSFT,GOOGL", tags="#Precious Metals,#Momentum,#Hedging", description="Live AI tradings by theme & strategy."),
-            models.Arena(name="Classic", tickers="BTC,ETH,SOL", tags="#Balance,#Quality", description="Jump in and copy-trade whoever's winning."),
-            models.Arena(name="Gemini 3 PK", tickers="TSLA,NVDA,AMD", tags="#PK,#Latest Models", description="Explore arenas. Copy-trade best models."),
-            models.Arena(name="AI Stock", tickers="AMZN,META,NFLX", tags="#AI,#Growth,#Tech", description="Browse live AI tradings.")
+            models.Arena(
+                name="AI PMs Storm Cup",
+                tickers="DULL,GDX,SIL",
+                tags="#Precious Metals,#Momentum,#Hedging",
+                description="Live AI tradings by theme & strategy.",
+                rule="Live Trading Cup 2024",
+                prompt_text="Long/short strategies based on momentum and trend-following across multiple timeframes."
+            ),
+            models.Arena(
+                name="Classic",
+                tickers="BTC,ETH,SOL",
+                tags="#Balance,#Quality",
+                description="Jump in and copy-trade whoever's winning.",
+                rule="Long-term Value",
+                prompt_text="Identify undervalued assets based on fundamentals and technical analysis."
+            ),
+            models.Arena(
+                name="Gemini 3 PK",
+                tickers="TSLA,NVDA,AMD",
+                tags="#PK,#Latest Models",
+                description="Explore arenas. Copy-trade best models.",
+                rule="Short-term Scalping",
+                prompt_text="High-frequency trading signals based on order flow and volatility."
+            ),
+            models.Arena(
+                name="AI Stock",
+                tickers="AMZN,META,NFLX",
+                tags="#AI,#Growth,#Tech",
+                description="Browse live AI tradings.",
+                rule="Trend Following",
+                prompt_text="Analyze market trends and sentiments to identify growth opportunities."
+            )
         ]
         db.add_all(arenas)
         db.commit()

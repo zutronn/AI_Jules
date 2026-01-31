@@ -1,42 +1,115 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { ChevronLeft, ChevronRight, PieChart, List } from 'lucide-react';
 
 const TradeList = ({ trades }: { trades: any[] }) => {
+  const [activeTab, setActiveTab] = useState<'Portfolio' | 'Orders'>('Portfolio');
+
+  const portfolio = [
+    { symbol: 'DULL', asset: '$3900.99', assetPct: '36.6%', pnl: '+$689.67', color: 'bg-blue-600' },
+    { symbol: 'GDX', asset: '$2100.50', assetPct: '19.8%', pnl: '-$120.30', color: 'bg-orange-500' },
+    { symbol: 'SIL', asset: '$1500.20', assetPct: '14.1%', pnl: '+$45.20', color: 'bg-green-500' },
+  ];
+
   return (
-    <div className="p-6 bg-white rounded-2xl border border-gray-100 shadow-sm">
-      <h2 className="text-xl font-bold mb-6 text-gray-900">Trade History</h2>
-      <div className="overflow-y-auto max-h-[400px]">
-        <table className="w-full text-left">
-          <thead>
-            <tr className="border-b border-gray-100 text-gray-400 text-xs uppercase tracking-wider">
-              <th className="pb-4 font-medium">Symbol</th>
-              <th className="pb-4 font-medium">Side</th>
-              <th className="pb-4 font-medium">Price</th>
-              <th className="pb-4 font-medium text-right">Time</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
-            {trades.length === 0 ? (
-                <tr>
-                    <td colSpan={4} className="py-8 text-center text-gray-400 text-sm">No trades yet</td>
+    <div className="flex flex-col h-full overflow-hidden">
+      <div className="flex border-b border-gray-100">
+        <button
+          onClick={() => setActiveTab('Portfolio')}
+          className={`flex-1 py-4 text-xs font-black uppercase tracking-widest transition-colors ${activeTab === 'Portfolio' ? 'text-purple-600 border-b-2 border-purple-600' : 'text-gray-400 hover:text-gray-600'}`}
+        >
+          Portfolio
+        </button>
+        <button
+          onClick={() => setActiveTab('Orders')}
+          className={`flex-1 py-4 text-xs font-black uppercase tracking-widest transition-colors ${activeTab === 'Orders' ? 'text-purple-600 border-b-2 border-purple-600' : 'text-gray-400 hover:text-gray-600'}`}
+        >
+          Orders
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-6">
+        {activeTab === 'Portfolio' ? (
+          <div className="space-y-6">
+            <div className="flex items-center space-x-2 text-purple-600">
+               <div className="w-5 h-5 bg-purple-600 rounded-full flex items-center justify-center text-white">
+                 <PieChart className="w-3 h-3" />
+               </div>
+               <span className="text-xs font-black">DeepSeek V3.1</span>
+            </div>
+
+            <div className="flex items-center justify-between">
+               <ChevronLeft className="w-4 h-4 text-gray-300 cursor-pointer" />
+               <div className="flex items-center space-x-1">
+                 <div className="w-8 h-1 bg-purple-600 rounded-full"></div>
+                 <div className="w-1 h-1 bg-gray-200 rounded-full"></div>
+                 <div className="w-1 h-1 bg-gray-200 rounded-full"></div>
+               </div>
+               <ChevronRight className="w-4 h-4 text-gray-300 cursor-pointer" />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-gray-50 p-4 rounded-2xl">
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Assets</p>
+                <p className="text-sm font-black text-gray-900">$10650.16</p>
+              </div>
+              <div className="bg-gray-50 p-4 rounded-2xl">
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Today's P&L</p>
+                <p className="text-sm font-black text-purple-600">+$0.00</p>
+              </div>
+            </div>
+
+            <table className="w-full">
+              <thead>
+                <tr className="text-[10px] font-black text-gray-400 uppercase tracking-widest text-left">
+                  <th className="pb-4">symbol</th>
+                  <th className="pb-4">asset</th>
+                  <th className="pb-4">asset%</th>
+                  <th className="pb-4 text-right">p&l</th>
                 </tr>
+              </thead>
+              <tbody className="space-y-4">
+                {portfolio.map((item, i) => (
+                  <tr key={i} className="text-xs font-bold">
+                    <td className="py-2 flex items-center space-x-2">
+                       <div className={`w-5 h-5 ${item.color} rounded flex items-center justify-center text-white text-[8px]`}>{item.symbol[0]}</div>
+                       <span>{item.symbol}</span>
+                    </td>
+                    <td className="py-2 text-gray-600">{item.asset}</td>
+                    <td className="py-2 text-gray-400">{item.assetPct}</td>
+                    <td className={`py-2 text-right ${item.pnl.startsWith('+') ? 'text-green-500' : 'text-red-500'}`}>{item.pnl}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {trades.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 text-gray-400 space-y-2">
+                  <List className="w-8 h-8 opacity-20" />
+                  <p className="text-[10px] font-black uppercase tracking-widest">No orders yet</p>
+                </div>
             ) : (
                 trades.map((trade) => (
-                <tr key={trade.id} className="text-sm">
-                    <td className="py-4 font-bold text-gray-900">{trade.symbol}</td>
-                    <td className="py-4">
-                        <span className={`px-2 py-1 rounded text-[10px] font-bold ${trade.side === 'BUY' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                            {trade.side}
-                        </span>
-                    </td>
-                    <td className="py-4 text-gray-600">${trade.price.toLocaleString()}</td>
-                    <td className="py-4 text-gray-400 text-right text-xs">
-                        {new Date(trade.timestamp).toLocaleTimeString()}
-                    </td>
-                </tr>
+                <div key={trade.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
+                    <div className="flex items-center space-x-3">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs ${trade.side === 'BUY' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                            {trade.side[0]}
+                        </div>
+                        <div>
+                            <p className="font-bold text-gray-900 text-xs">{trade.symbol}</p>
+                            <p className="text-[10px] text-gray-400">{new Date(trade.timestamp).toLocaleTimeString()}</p>
+                        </div>
+                    </div>
+                    <div className="text-right">
+                        <p className="font-bold text-xs text-gray-900">${trade.price.toLocaleString()}</p>
+                        <p className="text-[10px] text-gray-400">{trade.amount} shares</p>
+                    </div>
+                </div>
                 ))
             )}
-          </tbody>
-        </table>
+          </div>
+        )}
       </div>
     </div>
   );
