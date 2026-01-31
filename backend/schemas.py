@@ -7,6 +7,8 @@ class ArenaBase(BaseModel):
     tickers: str
     cycle_time: int = Field(default=10, ge=1, le=3600)
     is_active: bool = True
+    tags: Optional[str] = ""
+    description: Optional[str] = ""
 
 class ArenaCreate(ArenaBase):
     pass
@@ -16,6 +18,8 @@ class ArenaUpdate(BaseModel):
     tickers: Optional[str] = None
     cycle_time: Optional[int] = Field(default=None, ge=1, le=3600)
     is_active: Optional[bool] = None
+    tags: Optional[str] = None
+    description: Optional[str] = None
 
 class Arena(ArenaBase):
     id: int

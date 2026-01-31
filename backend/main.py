@@ -13,10 +13,24 @@ from .services.stock_data import StockDataService
 # Dictionary to keep track of running tasks for each arena
 running_tasks: Dict[int, asyncio.Task] = {}
 
+def seed_data():
+    db = database.SessionLocal()
+    if db.query(models.Arena).count() == 0:
+        arenas = [
+            models.Arena(name="AI PMs Storm Cup", tickers="AAPL,MSFT,GOOGL", tags="#Precious Metals,#Momentum,#Hedging", description="Live AI tradings by theme & strategy."),
+            models.Arena(name="Classic", tickers="BTC,ETH,SOL", tags="#Balance,#Quality", description="Jump in and copy-trade whoever's winning."),
+            models.Arena(name="Gemini 3 PK", tickers="TSLA,NVDA,AMD", tags="#PK,#Latest Models", description="Explore arenas. Copy-trade best models."),
+            models.Arena(name="AI Stock", tickers="AMZN,META,NFLX", tags="#AI,#Growth,#Tech", description="Browse live AI tradings.")
+        ]
+        db.add_all(arenas)
+        db.commit()
+    db.close()
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup: Initialize DB and start autonomous trading for existing active arenas
     database.init_db()
+    seed_data()
     db = database.SessionLocal()
     arenas = db.query(models.Arena).filter(models.Arena.is_active == 1).all()
     for arena in arenas:

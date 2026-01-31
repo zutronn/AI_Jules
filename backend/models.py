@@ -11,6 +11,8 @@ class Arena(Base):
     tickers = Column(String)  # Comma separated
     cycle_time = Column(Integer, default=10) # In seconds
     is_active = Column(Boolean, default=True)
+    tags = Column(String, default="") # Comma separated
+    description = Column(String, default="")
 
 class Trade(Base):
     __tablename__ = "trades"
