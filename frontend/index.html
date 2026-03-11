@@ -11,16 +11,24 @@
     <script type="module" src="/src/main.tsx"></script>
   <script>
     // Inject "AI Tokens" nav link into the React app's header
+    var _tokenRetries = 0;
+    var _tokenMaxRetries = 20;
     function injectTokensLink() {
-      const nav = document.querySelector('header nav');
-      if (!nav) { setTimeout(injectTokensLink, 500); return; }
-      if (document.getElementById('tokens-nav-link')) return;
-      const links = nav.querySelectorAll('a');
-      let insertBefore = null;
-      for (const link of links) {
-        if (link.textContent.trim() === 'Sign In') { insertBefore = link; break; }
+      if (document.getElementById('tokens-nav-link')) {
+        _tokenObserver.disconnect();
+        return;
       }
-      const tokenLink = document.createElement('a');
+      var nav = document.querySelector('header nav') || document.querySelector('nav');
+      if (!nav) {
+        if (++_tokenRetries < _tokenMaxRetries) setTimeout(injectTokensLink, 500);
+        return;
+      }
+      var links = nav.querySelectorAll('a');
+      var insertBefore = null;
+      for (var i = 0; i < links.length; i++) {
+        if (links[i].textContent.trim() === 'Sign In') { insertBefore = links[i]; break; }
+      }
+      var tokenLink = document.createElement('a');
       tokenLink.id = 'tokens-nav-link';
       tokenLink.href = '/tokens/index.html';
       tokenLink.style.cssText = 'display:flex;align-items:center;gap:6px;font-size:14px;font-weight:600;color:#ea580c;transition:color 0.2s;';
@@ -30,12 +38,13 @@
       } else {
         nav.appendChild(tokenLink);
       }
+      _tokenObserver.disconnect();
     }
     setTimeout(injectTokensLink, 1000);
-    const observer = new MutationObserver(function() {
+    var _tokenObserver = new MutationObserver(function() {
       if (!document.getElementById('tokens-nav-link')) injectTokensLink();
     });
-    observer.observe(document.body, { childList: true, subtree: true });
+    _tokenObserver.observe(document.body, { childList: true, subtree: true });
   </script>
   </body>
 </html>
