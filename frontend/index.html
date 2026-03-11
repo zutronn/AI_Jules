@@ -9,5 +9,33 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+  <script>
+    // Inject "AI Tokens" nav link into the React app's header
+    function injectTokensLink() {
+      const nav = document.querySelector('header nav');
+      if (!nav) { setTimeout(injectTokensLink, 500); return; }
+      if (document.getElementById('tokens-nav-link')) return;
+      const links = nav.querySelectorAll('a');
+      let insertBefore = null;
+      for (const link of links) {
+        if (link.textContent.trim() === 'Sign In') { insertBefore = link; break; }
+      }
+      const tokenLink = document.createElement('a');
+      tokenLink.id = 'tokens-nav-link';
+      tokenLink.href = '/tokens/index.html';
+      tokenLink.style.cssText = 'display:flex;align-items:center;gap:6px;font-size:14px;font-weight:600;color:#ea580c;transition:color 0.2s;';
+      tokenLink.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v12"/><path d="M6 12h12"/></svg> AI Tokens';
+      if (insertBefore) {
+        nav.insertBefore(tokenLink, insertBefore);
+      } else {
+        nav.appendChild(tokenLink);
+      }
+    }
+    setTimeout(injectTokensLink, 1000);
+    const observer = new MutationObserver(function() {
+      if (!document.getElementById('tokens-nav-link')) injectTokensLink();
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+  </script>
   </body>
 </html>
