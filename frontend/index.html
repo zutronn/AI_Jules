@@ -10,14 +10,16 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   <script>
-    // Inject "AI Tokens" nav link into the React app's header
-    var _tokenRetries = 0;
-    var _tokenMaxRetries = 20;
-    function injectTokensLink() {
-      if (document.getElementById('tokens-nav-link')) return;
+    // Inject "AI Tokens" and "Polymarket" nav links into the React app's header
+    var _navRetries = 0;
+    var _navMaxRetries = 20;
+    function injectNavLinks() {
+      var hasTokens = document.getElementById('tokens-nav-link');
+      var hasPoly = document.getElementById('polymarket-nav-link');
+      if (hasTokens && hasPoly) return;
       var nav = document.querySelector('header nav') || document.querySelector('nav');
       if (!nav) {
-        if (++_tokenRetries < _tokenMaxRetries) setTimeout(injectTokensLink, 500);
+        if (++_navRetries < _navMaxRetries) setTimeout(injectNavLinks, 500);
         return;
       }
       var links = nav.querySelectorAll('a');
@@ -25,22 +27,33 @@
       for (var i = 0; i < links.length; i++) {
         if (links[i].textContent.trim() === 'Sign In') { insertBefore = links[i]; break; }
       }
-      var tokenLink = document.createElement('a');
-      tokenLink.id = 'tokens-nav-link';
-      tokenLink.href = '/tokens/index.html';
-      tokenLink.style.cssText = 'display:flex;align-items:center;gap:6px;font-size:14px;font-weight:600;color:#ea580c;transition:color 0.2s;';
-      tokenLink.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v12"/><path d="M6 12h12"/></svg> AI Tokens';
-      if (insertBefore) {
-        nav.insertBefore(tokenLink, insertBefore);
-      } else {
-        nav.appendChild(tokenLink);
+      if (!hasTokens) {
+        var tokenLink = document.createElement('a');
+        tokenLink.id = 'tokens-nav-link';
+        tokenLink.href = '/tokens/index.html';
+        tokenLink.style.cssText = 'display:flex;align-items:center;gap:6px;font-size:14px;font-weight:600;color:#ea580c;transition:color 0.2s;';
+        tokenLink.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v12"/><path d="M6 12h12"/></svg> AI Tokens';
+        if (insertBefore) { nav.insertBefore(tokenLink, insertBefore); } else { nav.appendChild(tokenLink); }
+      }
+      if (!hasPoly) {
+        var polyLink = document.createElement('a');
+        polyLink.id = 'polymarket-nav-link';
+        polyLink.href = '/polymarket/index.html';
+        polyLink.style.cssText = 'display:flex;align-items:center;gap:6px;font-size:14px;font-weight:600;color:#2563eb;transition:color 0.2s;';
+        polyLink.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12l2 2 4-4"/></svg> Polymarket';
+        var signIn = null;
+        var allLinks = nav.querySelectorAll('a');
+        for (var j = 0; j < allLinks.length; j++) {
+          if (allLinks[j].textContent.trim() === 'Sign In') { signIn = allLinks[j]; break; }
+        }
+        if (signIn) { nav.insertBefore(polyLink, signIn); } else { nav.appendChild(polyLink); }
       }
     }
-    setTimeout(injectTokensLink, 1000);
-    var _tokenObserver = new MutationObserver(function() {
-      if (!document.getElementById('tokens-nav-link')) injectTokensLink();
+    setTimeout(injectNavLinks, 1000);
+    var _navObserver = new MutationObserver(function() {
+      if (!document.getElementById('tokens-nav-link') || !document.getElementById('polymarket-nav-link')) injectNavLinks();
     });
-    _tokenObserver.observe(document.body, { childList: true, subtree: true });
+    _navObserver.observe(document.body, { childList: true, subtree: true });
   </script>
   </body>
 </html>
