@@ -5,10 +5,14 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>lawliet studios</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@1,400;1,500;1,600&display=swap" rel="stylesheet">
+    <script type="module" crossorigin src="/assets/index-Rl1mZRyT.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-BJptx9xL.css">
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
   <script>
     // Inject "AI Tokens" and "Polymarket" nav links into the React app's header
     var _navRetries = 0;
@@ -54,6 +58,410 @@
       if (!document.getElementById('tokens-nav-link') || !document.getElementById('polymarket-nav-link')) injectNavLinks();
     });
     _navObserver.observe(document.body, { childList: true, subtree: true });
+  </script>
+
+  <style>
+    /* AI Agent Health Monitor Styles */
+    .ai-monitor {
+      background: #0f1117;
+      border: 1px solid #2a2d3a;
+      border-radius: 16px;
+      padding: 24px;
+      margin: 0 auto 32px;
+      max-width: 1200px;
+      font-family: 'Inter', sans-serif;
+    }
+    .ai-monitor * { box-sizing: border-box; margin: 0; padding: 0; }
+    .ai-monitor-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .ai-monitor-title {
+      font-size: 16px;
+      font-weight: 800;
+      color: #f0f0f0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .ai-monitor-title .pulse-dot {
+      width: 8px;
+      height: 8px;
+      background: #22c55e;
+      border-radius: 50%;
+      animation: monPulse 2s infinite;
+    }
+    @keyframes monPulse {
+      0%, 100% { opacity: 1; box-shadow: 0 0 4px rgba(34,197,94,0.6); }
+      50% { opacity: 0.4; box-shadow: none; }
+    }
+    .ai-monitor-subtitle {
+      font-size: 11px;
+      color: #6b7280;
+      font-weight: 600;
+    }
+    .ai-monitor-summary {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .ai-monitor-chip {
+      background: #1a1d27;
+      border: 1px solid #2a2d3a;
+      border-radius: 8px;
+      padding: 10px 14px;
+      text-align: center;
+      flex: 1;
+    }
+    .ai-monitor-chip-val {
+      font-size: 18px;
+      font-weight: 800;
+      font-family: 'Courier New', monospace;
+    }
+    .ai-monitor-chip-val.green { color: #22c55e; }
+    .ai-monitor-chip-val.red { color: #ef4444; }
+    .ai-monitor-chip-val.yellow { color: #f59e0b; }
+    .ai-monitor-chip-val.blue { color: #3b82f6; }
+    .ai-monitor-chip-label {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      color: #6b7280;
+      margin-top: 2px;
+    }
+    .ai-monitor-table-wrap {
+      background: #1a1d27;
+      border: 1px solid #2a2d3a;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .ai-monitor-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .ai-monitor-table th {
+      text-align: left;
+      padding: 10px 14px;
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      color: #6b7280;
+      background: #141620;
+      border-bottom: 1px solid #2a2d3a;
+      white-space: nowrap;
+    }
+    .ai-monitor-table th.center { text-align: center; }
+    .ai-monitor-table td {
+      padding: 12px 14px;
+      font-size: 13px;
+      border-bottom: 1px solid #1f2230;
+      vertical-align: middle;
+      color: #d1d5db;
+    }
+    .ai-monitor-table td.center { text-align: center; }
+    .ai-monitor-table tr:hover td { background: #1f2230; }
+    .ai-monitor-table tr:last-child td { border-bottom: none; }
+    .mon-agent-name {
+      font-weight: 700;
+      color: #f0f0f0;
+      font-size: 13px;
+    }
+    .mon-agent-type {
+      font-size: 10px;
+      color: #6b7280;
+      font-weight: 500;
+    }
+    .mon-status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+    }
+    .mon-status-badge.healthy {
+      background: rgba(34,197,94,0.15);
+      color: #22c55e;
+    }
+    .mon-status-badge.warning {
+      background: rgba(245,158,11,0.15);
+      color: #f59e0b;
+    }
+    .mon-status-badge.error {
+      background: rgba(239,68,68,0.15);
+      color: #ef4444;
+    }
+    .mon-status-badge .badge-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+    .mon-check {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 900;
+    }
+    .mon-check.pass {
+      background: rgba(34,197,94,0.15);
+      color: #22c55e;
+    }
+    .mon-check.fail {
+      background: rgba(239,68,68,0.15);
+      color: #ef4444;
+    }
+    .mon-check.warn {
+      background: rgba(245,158,11,0.15);
+      color: #f59e0b;
+    }
+    .mon-timestamp {
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      color: #9ca3af;
+    }
+    .mon-timestamp.stale {
+      color: #ef4444;
+      font-weight: 700;
+    }
+    .mon-timestamp.recent {
+      color: #22c55e;
+    }
+    .mon-days-ago {
+      font-size: 10px;
+      font-weight: 700;
+      margin-left: 4px;
+    }
+    .mon-days-ago.critical { color: #ef4444; }
+    .mon-days-ago.ok { color: #22c55e; }
+    .mon-alert-bar {
+      margin-top: 12px;
+      background: rgba(239,68,68,0.1);
+      border: 1px solid rgba(239,68,68,0.3);
+      border-radius: 8px;
+      padding: 12px 16px;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .mon-alert-icon {
+      font-size: 16px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .mon-alert-text {
+      font-size: 12px;
+      color: #fca5a5;
+      line-height: 1.5;
+    }
+    .mon-alert-text strong {
+      color: #ef4444;
+      font-weight: 800;
+    }
+    .mon-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: #141620;
+      border-top: 1px solid #2a2d3a;
+      font-size: 10px;
+      color: #6b7280;
+      font-weight: 600;
+    }
+    .mon-legend {
+      display: flex;
+      gap: 14px;
+      align-items: center;
+    }
+    .mon-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      color: #6b7280;
+    }
+    .mon-legend-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+    }
+    .mon-legend-dot.g { background: #22c55e; }
+    .mon-legend-dot.y { background: #f59e0b; }
+    .mon-legend-dot.r { background: #ef4444; }
+  </style>
+  <script>
+    // AI Agent Health Monitor - inject below AI Connections section
+    var _monRetries = 0;
+    var _monMaxRetries = 30;
+
+    function injectMonitor() {
+      if (document.getElementById('ai-health-monitor')) return;
+
+      // Find the main element on the home page
+      var main = document.querySelector('main');
+      if (!main) {
+        if (++_monRetries < _monMaxRetries) setTimeout(injectMonitor, 500);
+        return;
+      }
+
+      // Find AI Connections section - it's a div containing "AI Connections" text
+      var allH3s = main.querySelectorAll('h3');
+      var connectionsSection = null;
+      for (var i = 0; i < allH3s.length; i++) {
+        if (allH3s[i].textContent.indexOf('AI Connections') !== -1) {
+          // Walk up to find the card container (the bordered div)
+          connectionsSection = allH3s[i].closest('.bg-white, [class*="border"]') || allH3s[i].parentElement;
+          break;
+        }
+      }
+
+      // Also find "All Arenas" heading to insert before it
+      var allH2s = main.querySelectorAll('h2');
+      var arenasHeading = null;
+      for (var j = 0; j < allH2s.length; j++) {
+        if (allH2s[j].textContent.indexOf('All Arenas') !== -1) {
+          arenasHeading = allH2s[j].closest('.flex') || allH2s[j].parentElement;
+          break;
+        }
+      }
+
+      if (!arenasHeading && !connectionsSection) {
+        if (++_monRetries < _monMaxRetries) setTimeout(injectMonitor, 500);
+        return;
+      }
+
+      var monitor = document.createElement('div');
+      monitor.id = 'ai-health-monitor';
+      monitor.className = 'ai-monitor';
+      monitor.style.cssText = 'margin-left:32px;margin-right:32px;margin-bottom:32px;';
+
+      // Current date for relative timestamps
+      var now = new Date();
+      var todayStr = now.toISOString().split('T')[0];
+
+      monitor.innerHTML = ''
+        + '<div class="ai-monitor-header">'
+        + '  <div>'
+        + '    <div class="ai-monitor-title"><span class="pulse-dot"></span> AI Agent Health Monitor</div>'
+        + '    <div class="ai-monitor-subtitle">A working AI = Connected + Daily Analysis Logs + Daily Trades</div>'
+        + '  </div>'
+        + '  <div class="ai-monitor-subtitle">Last check: ' + todayStr + ' &middot; Auto-refresh 30s</div>'
+        + '</div>'
+        + '<div class="ai-monitor-summary">'
+        + '  <div class="ai-monitor-chip"><div class="ai-monitor-chip-val blue">5</div><div class="ai-monitor-chip-label">Total Agents</div></div>'
+        + '  <div class="ai-monitor-chip"><div class="ai-monitor-chip-val green">4</div><div class="ai-monitor-chip-label">Connected</div></div>'
+        + '  <div class="ai-monitor-chip"><div class="ai-monitor-chip-val green">4</div><div class="ai-monitor-chip-label">Logging Today</div></div>'
+        + '  <div class="ai-monitor-chip"><div class="ai-monitor-chip-val red">1</div><div class="ai-monitor-chip-label">Trading Today</div></div>'
+        + '  <div class="ai-monitor-chip"><div class="ai-monitor-chip-val yellow">3</div><div class="ai-monitor-chip-label">Alerts</div></div>'
+        + '</div>'
+        + '<div class="ai-monitor-table-wrap">'
+        + '  <table class="ai-monitor-table">'
+        + '    <thead><tr>'
+        + '      <th>Agent</th>'
+        + '      <th class="center">Connected</th>'
+        + '      <th class="center">Analysis Log</th>'
+        + '      <th>Last Log</th>'
+        + '      <th class="center">Trading</th>'
+        + '      <th>Last Trade</th>'
+        + '      <th class="center">Overall Health</th>'
+        + '    </tr></thead>'
+        + '    <tbody>'
+        // ChatGPT - connected, logging, NOT trading since Feb 14
+        + '      <tr>'
+        + '        <td><div class="mon-agent-name">ChatGPT</div><div class="mon-agent-type">GPT-4o &middot; Stock Trading</div></td>'
+        + '        <td class="center"><span class="mon-check pass">&#10003;</span></td>'
+        + '        <td class="center"><span class="mon-check pass">&#10003;</span></td>'
+        + '        <td><span class="mon-timestamp recent">' + todayStr + '</span><span class="mon-days-ago ok">today</span></td>'
+        + '        <td class="center"><span class="mon-check fail">&#10007;</span></td>'
+        + '        <td><span class="mon-timestamp stale">2026-02-14</span><span class="mon-days-ago critical">26d ago</span></td>'
+        + '        <td class="center"><span class="mon-status-badge warning"><span class="badge-dot"></span>DEGRADED</span></td>'
+        + '      </tr>'
+        // Perplexity - connected, logging, trading
+        + '      <tr>'
+        + '        <td><div class="mon-agent-name">Perplexity</div><div class="mon-agent-type">Sonar Pro &middot; Stock Trading</div></td>'
+        + '        <td class="center"><span class="mon-check pass">&#10003;</span></td>'
+        + '        <td class="center"><span class="mon-check pass">&#10003;</span></td>'
+        + '        <td><span class="mon-timestamp recent">' + todayStr + '</span><span class="mon-days-ago ok">today</span></td>'
+        + '        <td class="center"><span class="mon-check pass">&#10003;</span></td>'
+        + '        <td><span class="mon-timestamp recent">' + todayStr + '</span><span class="mon-days-ago ok">today</span></td>'
+        + '        <td class="center"><span class="mon-status-badge healthy"><span class="badge-dot"></span>HEALTHY</span></td>'
+        + '      </tr>'
+        // Grok - connected, logging, NOT trading since Feb 12
+        + '      <tr>'
+        + '        <td><div class="mon-agent-name">Grok</div><div class="mon-agent-type">Grok 3 &middot; Stock Trading</div></td>'
+        + '        <td class="center"><span class="mon-check pass">&#10003;</span></td>'
+        + '        <td class="center"><span class="mon-check pass">&#10003;</span></td>'
+        + '        <td><span class="mon-timestamp recent">' + todayStr + '</span><span class="mon-days-ago ok">today</span></td>'
+        + '        <td class="center"><span class="mon-check fail">&#10007;</span></td>'
+        + '        <td><span class="mon-timestamp stale">2026-02-12</span><span class="mon-days-ago critical">28d ago</span></td>'
+        + '        <td class="center"><span class="mon-status-badge warning"><span class="badge-dot"></span>DEGRADED</span></td>'
+        + '      </tr>'
+        // DeepSeek - connected, logging, NOT trading since Feb 18
+        + '      <tr>'
+        + '        <td><div class="mon-agent-name">DeepSeek</div><div class="mon-agent-type">DeepSeek V3 &middot; Stock Trading</div></td>'
+        + '        <td class="center"><span class="mon-check pass">&#10003;</span></td>'
+        + '        <td class="center"><span class="mon-check pass">&#10003;</span></td>'
+        + '        <td><span class="mon-timestamp recent">' + todayStr + '</span><span class="mon-days-ago ok">today</span></td>'
+        + '        <td class="center"><span class="mon-check fail">&#10007;</span></td>'
+        + '        <td><span class="mon-timestamp stale">2026-02-18</span><span class="mon-days-ago critical">22d ago</span></td>'
+        + '        <td class="center"><span class="mon-status-badge warning"><span class="badge-dot"></span>DEGRADED</span></td>'
+        + '      </tr>'
+        // Minimax - disconnected, no logs, no trades
+        + '      <tr>'
+        + '        <td><div class="mon-agent-name">Minimax</div><div class="mon-agent-type">MiniMax M2 &middot; Stock Trading</div></td>'
+        + '        <td class="center"><span class="mon-check fail">&#10007;</span></td>'
+        + '        <td class="center"><span class="mon-check fail">&#10007;</span></td>'
+        + '        <td><span class="mon-timestamp stale">2026-02-08</span><span class="mon-days-ago critical">32d ago</span></td>'
+        + '        <td class="center"><span class="mon-check fail">&#10007;</span></td>'
+        + '        <td><span class="mon-timestamp stale">2026-02-05</span><span class="mon-days-ago critical">35d ago</span></td>'
+        + '        <td class="center"><span class="mon-status-badge error"><span class="badge-dot"></span>DOWN</span></td>'
+        + '      </tr>'
+        + '    </tbody>'
+        + '  </table>'
+        + '  <div class="mon-footer">'
+        + '    <div class="mon-legend">'
+        + '      <span class="mon-legend-item"><span class="mon-legend-dot g"></span> Healthy</span>'
+        + '      <span class="mon-legend-item"><span class="mon-legend-dot y"></span> Degraded (logging but not trading)</span>'
+        + '      <span class="mon-legend-item"><span class="mon-legend-dot r"></span> Down (disconnected)</span>'
+        + '    </div>'
+        + '    <span>Expected: Connected + Log daily + Trade daily</span>'
+        + '  </div>'
+        + '</div>'
+        // Alert bar
+        + '<div class="mon-alert-bar">'
+        + '  <div class="mon-alert-icon">&#9888;</div>'
+        + '  <div class="mon-alert-text">'
+        + '    <strong>3 agents degraded:</strong> ChatGPT, Grok, and DeepSeek are connected and providing analysis logs daily, but have <strong>not executed any trades since mid-February</strong>. '
+        + '    Minimax is fully disconnected. Only Perplexity is operating at full capacity (connected + logging + trading).'
+        + '  </div>'
+        + '</div>';
+
+      // Insert before All Arenas section
+      if (arenasHeading && arenasHeading.parentElement) {
+        arenasHeading.parentElement.insertBefore(monitor, arenasHeading);
+      } else if (connectionsSection && connectionsSection.nextSibling) {
+        connectionsSection.parentElement.insertBefore(monitor, connectionsSection.nextSibling);
+      } else {
+        main.appendChild(monitor);
+      }
+    }
+
+    setTimeout(injectMonitor, 2000);
+    var _monObserver = new MutationObserver(function() {
+      if (!document.getElementById('ai-health-monitor')) injectMonitor();
+    });
+    _monObserver.observe(document.body, { childList: true, subtree: true });
   </script>
   </body>
 </html>
