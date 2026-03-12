@@ -14,10 +14,7 @@
     var _tokenRetries = 0;
     var _tokenMaxRetries = 20;
     function injectTokensLink() {
-      if (document.getElementById('tokens-nav-link')) {
-        _tokenObserver.disconnect();
-        return;
-      }
+      if (document.getElementById('tokens-nav-link')) return;
       var nav = document.querySelector('header nav') || document.querySelector('nav');
       if (!nav) {
         if (++_tokenRetries < _tokenMaxRetries) setTimeout(injectTokensLink, 500);
@@ -38,7 +35,6 @@
       } else {
         nav.appendChild(tokenLink);
       }
-      _tokenObserver.disconnect();
     }
     setTimeout(injectTokensLink, 1000);
     var _tokenObserver = new MutationObserver(function() {
