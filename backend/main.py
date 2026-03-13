@@ -466,16 +466,11 @@ async def trading_watchdog():
                 if needs_restart:
                     print(f"Watchdog: Restarting trading for Arena {arena.id} ({arena.name}). Reason: {reason}")
 
-                    # Cancel old task if it exists
+                    # Cancel old task if it exists — del immediately to prevent
+                    # concurrent restart_trading/update_arena from racing with us
                     if arena.id in running_tasks:
                         running_tasks[arena.id].cancel()
-                        try:
-                            # Use asyncio.wait to avoid propagating the child task's CancelledError
-                            await asyncio.wait({running_tasks[arena.id]}, timeout=5)
-                        except asyncio.CancelledError:
-                            raise
-                        except Exception:
-                            pass
+                        del running_tasks[arena.id]
 
                     # Start fresh task and give it a grace period
                     running_tasks[arena.id] = asyncio.create_task(run_autonomous_trading(arena.id))
