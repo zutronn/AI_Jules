@@ -449,8 +449,9 @@ async def trading_watchdog():
                         except (asyncio.CancelledError, asyncio.TimeoutError, Exception):
                             pass
 
-                    # Start fresh task
+                    # Start fresh task and give it a grace period
                     running_tasks[arena.id] = asyncio.create_task(run_autonomous_trading(arena.id))
+                    last_successful_cycle[arena.id] = datetime.datetime.utcnow()  # Grace period for new task
 
                     # Log the watchdog restart
                     log = models.SystemLog(
