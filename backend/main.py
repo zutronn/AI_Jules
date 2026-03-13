@@ -306,8 +306,11 @@ def run_cycle(db: Session, arena_id: int):
                     amount=10.0
                 ))
         except Exception as e:
+            # Rollback to clear any failed session state (e.g. from orchestrator's
+            # internal db.commit() failure). Safe because pending_trades is a Python
+            # list, not in the DB session, so rollback won't discard collected trades.
+            db.rollback()
             # Log per-symbol errors but continue processing other symbols
-            # Don't call db.rollback() here — it would discard earlier successful trades
             pending_error_logs.append(models.SystemLog(
                 arena_id=arena_id,
                 level="ERROR",
