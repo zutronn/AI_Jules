@@ -366,6 +366,8 @@ async def run_autonomous_trading(arena_id: int):
             try:
                 if db is None:
                     db = database.SessionLocal()
+                else:
+                    db.rollback()
                 error_log = models.SystemLog(
                     arena_id=arena_id,
                     level="ERROR",
@@ -400,6 +402,7 @@ async def trading_watchdog():
     await asyncio.sleep(30)  # Initial delay to let things start up
 
     while True:
+        db = None
         try:
             db = database.SessionLocal()
             arenas = db.query(models.Arena).filter(models.Arena.is_active == 1).all()
@@ -424,12 +427,16 @@ async def trading_watchdog():
                     except (asyncio.CancelledError, asyncio.InvalidStateError):
                         reason = "task was cancelled or in invalid state"
 
-                # Check 3: Task is running but stale (no successful cycle)
-                elif arena.id in last_successful_cycle:
+                # Check 3: Task is running but has never had a successful cycle
+                elif arena.id not in last_successful_cycle:
+                    needs_restart = True
+                    reason = "no successful cycle ever recorded"
+
+                # Check 4: Task is running but stale (no successful cycle recently)
+                elif (now - last_successful_cycle[arena.id]).total_seconds() > WATCHDOG_STALE_THRESHOLD:
+                    needs_restart = True
                     elapsed = (now - last_successful_cycle[arena.id]).total_seconds()
-                    if elapsed > WATCHDOG_STALE_THRESHOLD:
-                        needs_restart = True
-                        reason = f"stale - no successful cycle for {int(elapsed)}s"
+                    reason = f"stale - no successful cycle for {int(elapsed)}s"
 
                 if needs_restart:
                     print(f"Watchdog: Restarting trading for Arena {arena.id} ({arena.name}). Reason: {reason}")
@@ -456,10 +463,17 @@ async def trading_watchdog():
 
             db.commit()
             db.close()
+            db = None
 
         except asyncio.CancelledError:
             raise
         except Exception as e:
             print(f"Watchdog error: {e}")
+        finally:
+            if db is not None:
+                try:
+                    db.close()
+                except Exception:
+                    pass
 
         await asyncio.sleep(60)  # Check every 60 seconds
