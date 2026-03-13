@@ -286,6 +286,11 @@ def run_cycle(db: Session, arena_id: int):
     tickers = arena.tickers.split(",")
     orchestrator = Orchestrator(db)
 
+    # Collect successful trades and error logs separately to avoid rollback
+    # discarding earlier successful trades when a later symbol fails
+    pending_trades = []
+    pending_error_logs = []
+
     for symbol in tickers:
         symbol = symbol.strip()
         try:
@@ -293,26 +298,28 @@ def run_cycle(db: Session, arena_id: int):
             decision = orchestrator.run_trading_cycle(market_data, arena_id)
 
             if decision in ["BUY", "SELL"]:
-                trade = models.Trade(
+                pending_trades.append(models.Trade(
                     arena_id=arena_id,
                     symbol=symbol,
                     side=decision,
                     price=market_data["price"],
                     amount=10.0
-                )
-                db.add(trade)
+                ))
         except Exception as e:
-            # Rollback to clear any failed transaction state before continuing
-            db.rollback()
             # Log per-symbol errors but continue processing other symbols
-            error_log = models.SystemLog(
+            # Don't call db.rollback() here — it would discard earlier successful trades
+            pending_error_logs.append(models.SystemLog(
                 arena_id=arena_id,
                 level="ERROR",
                 source="TradingCycle",
                 message=f"Error processing {symbol}: {str(e)}"
-            )
-            db.add(error_log)
+            ))
 
+    # Add all collected trades and error logs in one batch, then commit
+    for trade in pending_trades:
+        db.add(trade)
+    for error_log in pending_error_logs:
+        db.add(error_log)
     db.commit()
 
     # Run monitoring and self-improvement
