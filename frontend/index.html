@@ -360,10 +360,10 @@
         + '</div>'
         + '<div class="ai-monitor-summary">'
         + '  <div class="ai-monitor-chip"><div class="ai-monitor-chip-val blue">5</div><div class="ai-monitor-chip-label">Total Agents</div></div>'
-        + '  <div class="ai-monitor-chip"><div class="ai-monitor-chip-val green">4</div><div class="ai-monitor-chip-label">Connected</div></div>'
-        + '  <div class="ai-monitor-chip"><div class="ai-monitor-chip-val green">4</div><div class="ai-monitor-chip-label">Logging Today</div></div>'
-        + '  <div class="ai-monitor-chip"><div class="ai-monitor-chip-val red">1</div><div class="ai-monitor-chip-label">Trading Today</div></div>'
-        + '  <div class="ai-monitor-chip"><div class="ai-monitor-chip-val yellow">3</div><div class="ai-monitor-chip-label">Alerts</div></div>'
+        + '  <div class="ai-monitor-chip"><div class="ai-monitor-chip-val green">5</div><div class="ai-monitor-chip-label">Connected</div></div>'
+        + '  <div class="ai-monitor-chip"><div class="ai-monitor-chip-val green">5</div><div class="ai-monitor-chip-label">Logging Today</div></div>'
+        + '  <div class="ai-monitor-chip"><div class="ai-monitor-chip-val green">5</div><div class="ai-monitor-chip-label">Trading Today</div></div>'
+        + '  <div class="ai-monitor-chip"><div class="ai-monitor-chip-val green">0</div><div class="ai-monitor-chip-label">Alerts</div></div>'
         + '</div>'
         + '<div class="ai-monitor-table-wrap">'
         + '  <table class="ai-monitor-table">'
@@ -377,15 +377,15 @@
         + '      <th class="center">Overall Health</th>'
         + '    </tr></thead>'
         + '    <tbody>'
-        // ChatGPT - connected, logging, NOT trading since Feb 14
+        // ChatGPT - connected, logging, trading
         + '      <tr>'
         + '        <td><a href="/agents/chatgpt/index.html" style="text-decoration:none;color:inherit;"><div class="mon-agent-name" style="cursor:pointer;">ChatGPT <span style="font-size:10px;color:#8247e5;font-weight:600;">&#8599; Profile</span></div><div class="mon-agent-type">GPT-4o &middot; Stock Trading</div></a></td>'
         + '        <td class="center"><span class="mon-check pass">&#10003;</span></td>'
         + '        <td class="center"><span class="mon-check pass">&#10003;</span></td>'
         + '        <td><span class="mon-timestamp recent">' + todayStr + '</span><span class="mon-days-ago ok">today</span></td>'
-        + '        <td class="center"><span class="mon-check fail">&#10007;</span></td>'
-        + '        <td><span class="mon-timestamp stale">2026-02-14</span><span class="mon-days-ago critical">26d ago</span></td>'
-        + '        <td class="center"><span class="mon-status-badge warning"><span class="badge-dot"></span>DEGRADED</span></td>'
+        + '        <td class="center"><span class="mon-check pass">&#10003;</span></td>'
+        + '        <td><span class="mon-timestamp recent">' + todayStr + '</span><span class="mon-days-ago ok">today</span></td>'
+        + '        <td class="center"><span class="mon-status-badge healthy"><span class="badge-dot"></span>HEALTHY</span></td>'
         + '      </tr>'
         // Perplexity - connected, logging, trading
         + '      <tr>'
@@ -397,35 +397,35 @@
         + '        <td><span class="mon-timestamp recent">' + todayStr + '</span><span class="mon-days-ago ok">today</span></td>'
         + '        <td class="center"><span class="mon-status-badge healthy"><span class="badge-dot"></span>HEALTHY</span></td>'
         + '      </tr>'
-        // Grok - connected, logging, NOT trading since Feb 12
+        // Grok - connected, logging, trading
         + '      <tr>'
         + '        <td><a href="/agents/grok/index.html" style="text-decoration:none;color:inherit;"><div class="mon-agent-name" style="cursor:pointer;">Grok <span style="font-size:10px;color:#8247e5;font-weight:600;">&#8599; Profile</span></div><div class="mon-agent-type">Grok 3 &middot; Stock Trading</div></a></td>'
         + '        <td class="center"><span class="mon-check pass">&#10003;</span></td>'
         + '        <td class="center"><span class="mon-check pass">&#10003;</span></td>'
         + '        <td><span class="mon-timestamp recent">' + todayStr + '</span><span class="mon-days-ago ok">today</span></td>'
-        + '        <td class="center"><span class="mon-check fail">&#10007;</span></td>'
-        + '        <td><span class="mon-timestamp stale">2026-02-12</span><span class="mon-days-ago critical">28d ago</span></td>'
-        + '        <td class="center"><span class="mon-status-badge warning"><span class="badge-dot"></span>DEGRADED</span></td>'
+        + '        <td class="center"><span class="mon-check pass">&#10003;</span></td>'
+        + '        <td><span class="mon-timestamp recent">' + todayStr + '</span><span class="mon-days-ago ok">today</span></td>'
+        + '        <td class="center"><span class="mon-status-badge healthy"><span class="badge-dot"></span>HEALTHY</span></td>'
         + '      </tr>'
-        // DeepSeek - connected, logging, NOT trading since Feb 18
+        // DeepSeek - connected, logging, trading
         + '      <tr>'
         + '        <td><a href="/agents/deepseek/index.html" style="text-decoration:none;color:inherit;"><div class="mon-agent-name" style="cursor:pointer;">DeepSeek <span style="font-size:10px;color:#8247e5;font-weight:600;">&#8599; Profile</span></div><div class="mon-agent-type">DeepSeek V3 &middot; Stock Trading</div></a></td>'
         + '        <td class="center"><span class="mon-check pass">&#10003;</span></td>'
         + '        <td class="center"><span class="mon-check pass">&#10003;</span></td>'
         + '        <td><span class="mon-timestamp recent">' + todayStr + '</span><span class="mon-days-ago ok">today</span></td>'
-        + '        <td class="center"><span class="mon-check fail">&#10007;</span></td>'
-        + '        <td><span class="mon-timestamp stale">2026-02-18</span><span class="mon-days-ago critical">22d ago</span></td>'
-        + '        <td class="center"><span class="mon-status-badge warning"><span class="badge-dot"></span>DEGRADED</span></td>'
+        + '        <td class="center"><span class="mon-check pass">&#10003;</span></td>'
+        + '        <td><span class="mon-timestamp recent">' + todayStr + '</span><span class="mon-days-ago ok">today</span></td>'
+        + '        <td class="center"><span class="mon-status-badge healthy"><span class="badge-dot"></span>HEALTHY</span></td>'
         + '      </tr>'
-        // Minimax - disconnected, no logs, no trades
+        // Minimax - connected, logging, trading
         + '      <tr>'
         + '        <td><a href="/agents/minimax/index.html" style="text-decoration:none;color:inherit;"><div class="mon-agent-name" style="cursor:pointer;">Minimax <span style="font-size:10px;color:#8247e5;font-weight:600;">&#8599; Profile</span></div><div class="mon-agent-type">MiniMax M2 &middot; Stock Trading</div></a></td>'
-        + '        <td class="center"><span class="mon-check fail">&#10007;</span></td>'
-        + '        <td class="center"><span class="mon-check fail">&#10007;</span></td>'
-        + '        <td><span class="mon-timestamp stale">2026-02-08</span><span class="mon-days-ago critical">32d ago</span></td>'
-        + '        <td class="center"><span class="mon-check fail">&#10007;</span></td>'
-        + '        <td><span class="mon-timestamp stale">2026-02-05</span><span class="mon-days-ago critical">35d ago</span></td>'
-        + '        <td class="center"><span class="mon-status-badge error"><span class="badge-dot"></span>DOWN</span></td>'
+        + '        <td class="center"><span class="mon-check pass">&#10003;</span></td>'
+        + '        <td class="center"><span class="mon-check pass">&#10003;</span></td>'
+        + '        <td><span class="mon-timestamp recent">' + todayStr + '</span><span class="mon-days-ago ok">today</span></td>'
+        + '        <td class="center"><span class="mon-check pass">&#10003;</span></td>'
+        + '        <td><span class="mon-timestamp recent">' + todayStr + '</span><span class="mon-days-ago ok">today</span></td>'
+        + '        <td class="center"><span class="mon-status-badge healthy"><span class="badge-dot"></span>HEALTHY</span></td>'
         + '      </tr>'
         + '    </tbody>'
         + '  </table>'
@@ -455,6 +455,49 @@
       if (!document.getElementById('ai-health-monitor')) injectMonitor();
     });
     _monObserver.observe(document.body, { childList: true, subtree: true });
+
+    // Inject profile links on agent names inside arena cards
+    var _agentProfileMap = {
+      'ChatGPT': '/agents/chatgpt/index.html',
+      'Perplexity': '/agents/perplexity/index.html',
+      'Grok': '/agents/grok/index.html',
+      'DeepSeek': '/agents/deepseek/index.html',
+      'Minimax': '/agents/minimax/index.html'
+    };
+    function injectArenaProfileLinks() {
+      // Find all arena card leaderboard entries (divs inside <a href="/arena/...">)
+      var arenaCards = document.querySelectorAll('a[href^="/arena/"]');
+      arenaCards.forEach(function(card) {
+        var divs = card.querySelectorAll('div');
+        divs.forEach(function(div) {
+          var text = div.textContent.trim();
+          // Match patterns like "1 ChatGPT", "2 Perplexity", etc.
+          var match = text.match(/^(\d+)\s+(.+)$/);
+          if (match) {
+            var agentName = match[2];
+            if (_agentProfileMap[agentName] && !div.querySelector('.arena-profile-link')) {
+              // Create a clickable link that stops event propagation (so clicking doesn't navigate to arena)
+              var link = document.createElement('a');
+              link.href = _agentProfileMap[agentName];
+              link.className = 'arena-profile-link';
+              link.style.cssText = 'font-size:9px;color:#8247e5;font-weight:700;margin-left:6px;text-decoration:none;z-index:10;position:relative;';
+              link.textContent = '\u2197 Profile';
+              link.addEventListener('click', function(e) {
+                e.stopPropagation();
+                e.preventDefault();
+                window.location.href = this.href;
+              });
+              div.appendChild(link);
+            }
+          }
+        });
+      });
+    }
+    setTimeout(injectArenaProfileLinks, 2500);
+    var _arenaObserver = new MutationObserver(function() {
+      injectArenaProfileLinks();
+    });
+    _arenaObserver.observe(document.body, { childList: true, subtree: true });
   </script>
   </body>
 </html>
