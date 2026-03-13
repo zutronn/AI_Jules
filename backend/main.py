@@ -330,6 +330,7 @@ def run_cycle(db: Session, arena_id: int):
         si_agent = SelfImprovementAgent(db)
         si_agent.analyze_performance(arena_id)
     except Exception as e:
+        db.rollback()
         print(f"Post-cycle monitoring error for Arena {arena_id}: {e}")
 
 async def run_autonomous_trading(arena_id: int):
