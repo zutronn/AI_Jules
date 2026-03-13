@@ -135,9 +135,10 @@ async def trading_health_check(db: Session = Depends(get_db)):
 
         task_running = arena.id in running_tasks and not running_tasks[arena.id].done()
         last_cycle = last_successful_cycle.get(arena.id)
+        effective_threshold = max(WATCHDOG_STALE_THRESHOLD, arena.cycle_time + 120)
         cycle_stale = (
             last_cycle is None
-            or (now - last_cycle).total_seconds() > WATCHDOG_STALE_THRESHOLD
+            or (now - last_cycle).total_seconds() > effective_threshold
         )
 
         status = "healthy"
@@ -437,10 +438,12 @@ async def trading_watchdog():
                     reason = "no successful cycle ever recorded"
 
                 # Check 4: Task is running but stale (no successful cycle recently)
-                elif (now - last_successful_cycle[arena.id]).total_seconds() > WATCHDOG_STALE_THRESHOLD:
-                    needs_restart = True
+                else:
+                    effective_threshold = max(WATCHDOG_STALE_THRESHOLD, arena.cycle_time + 120)  # cycle_time + 2 min buffer
                     elapsed = (now - last_successful_cycle[arena.id]).total_seconds()
-                    reason = f"stale - no successful cycle for {int(elapsed)}s"
+                    if elapsed > effective_threshold:
+                        needs_restart = True
+                        reason = f"stale - no successful cycle for {int(elapsed)}s (threshold: {effective_threshold}s)"
 
                 if needs_restart:
                     print(f"Watchdog: Restarting trading for Arena {arena.id} ({arena.name}). Reason: {reason}")
