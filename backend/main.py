@@ -71,6 +71,7 @@ async def lifespan(app: FastAPI):
     arenas = db.query(models.Arena).filter(models.Arena.is_active == 1).all()
     for arena in arenas:
         running_tasks[arena.id] = asyncio.create_task(run_autonomous_trading(arena.id))
+        last_successful_cycle[arena.id] = datetime.datetime.utcnow()  # Grace period for first cycle
     db.close()
 
     # Start the watchdog that monitors and restarts stale trading loops
@@ -175,7 +176,7 @@ async def restart_trading(arena_id: Optional[int] = None, db: Session = Depends(
     """
     restarted = []
 
-    if arena_id:
+    if arena_id is not None:
         arenas = db.query(models.Arena).filter(
             models.Arena.id == arena_id, models.Arena.is_active == 1
         ).all()
