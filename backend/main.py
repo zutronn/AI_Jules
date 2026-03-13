@@ -188,10 +188,7 @@ async def restart_trading(arena_id: Optional[int] = None, db: Session = Depends(
         # Cancel existing task if running
         if arena.id in running_tasks:
             running_tasks[arena.id].cancel()
-            try:
-                await running_tasks[arena.id]
-            except (asyncio.CancelledError, Exception):
-                pass
+            del running_tasks[arena.id]  # Remove immediately to prevent watchdog from seeing a done() task
 
         # Start fresh task and give watchdog a grace period
         running_tasks[arena.id] = asyncio.create_task(run_autonomous_trading(arena.id))
