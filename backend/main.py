@@ -449,10 +449,11 @@ async def trading_watchdog():
                     if arena.id in running_tasks:
                         running_tasks[arena.id].cancel()
                         try:
-                            await asyncio.wait_for(running_tasks[arena.id], timeout=5)
+                            # Use asyncio.wait to avoid propagating the child task's CancelledError
+                            await asyncio.wait({running_tasks[arena.id]}, timeout=5)
                         except asyncio.CancelledError:
-                            raise  # Don't swallow our own cancellation during shutdown
-                        except (asyncio.TimeoutError, Exception):
+                            raise
+                        except Exception:
                             pass
 
                     # Start fresh task and give it a grace period
