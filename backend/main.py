@@ -110,7 +110,7 @@ def health_check():
     return {"status": "healthy"}
 
 @app.get("/health/trading")
-def trading_health_check(db: Session = Depends(get_db)):
+async def trading_health_check(db: Session = Depends(get_db)):
     """
     Deep health check — verifies trading loops are active and producing trades.
     Returns per-arena status with last trade time and staleness detection.
