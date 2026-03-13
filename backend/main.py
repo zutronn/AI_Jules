@@ -302,6 +302,8 @@ def run_cycle(db: Session, arena_id: int):
                 )
                 db.add(trade)
         except Exception as e:
+            # Rollback to clear any failed transaction state before continuing
+            db.rollback()
             # Log per-symbol errors but continue processing other symbols
             error_log = models.SystemLog(
                 arena_id=arena_id,
@@ -383,6 +385,14 @@ async def run_autonomous_trading(arena_id: int):
                 db.commit()
             except Exception:
                 pass  # DB logging failed too, just continue
+
+            # Close DB session before sleeping to avoid holding connection during backoff
+            if db is not None:
+                try:
+                    db.close()
+                except Exception:
+                    pass
+                db = None
 
             await asyncio.sleep(backoff)
 
