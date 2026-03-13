@@ -464,32 +464,39 @@
       'DeepSeek': '/agents/deepseek/index.html',
       'Minimax': '/agents/minimax/index.html'
     };
+    var _agentNames = Object.keys(_agentProfileMap);
     function injectArenaProfileLinks() {
-      // Find all arena card leaderboard entries (divs inside <a href="/arena/...">)
+      // Walk all text nodes inside arena cards looking for agent names
       var arenaCards = document.querySelectorAll('a[href^="/arena/"]');
       arenaCards.forEach(function(card) {
-        var divs = card.querySelectorAll('div');
-        divs.forEach(function(div) {
-          var text = div.textContent.trim();
-          // Match patterns like "1 ChatGPT", "2 Perplexity", etc.
-          var match = text.match(/^(\d+)\s+(.+)$/);
-          if (match) {
-            var agentName = match[2];
-            if (_agentProfileMap[agentName] && !div.querySelector('.arena-profile-link')) {
-              // Create a clickable link that stops event propagation (so clicking doesn't navigate to arena)
-              var link = document.createElement('a');
-              link.href = _agentProfileMap[agentName];
-              link.className = 'arena-profile-link';
-              link.style.cssText = 'font-size:9px;color:#8247e5;font-weight:700;margin-left:6px;text-decoration:none;z-index:10;position:relative;';
-              link.textContent = '\u2197 Profile';
-              link.addEventListener('click', function(e) {
-                e.stopPropagation();
-                e.preventDefault();
-                window.location.href = this.href;
-              });
-              div.appendChild(link);
+        // Use TreeWalker to find text nodes containing agent names
+        var walker = document.createTreeWalker(card, NodeFilter.SHOW_TEXT, null, false);
+        var node;
+        var matches = [];
+        while (node = walker.nextNode()) {
+          var text = node.textContent.trim();
+          for (var i = 0; i < _agentNames.length; i++) {
+            if (text === _agentNames[i] || text.indexOf(_agentNames[i]) === 0) {
+              matches.push({ textNode: node, agentName: _agentNames[i] });
+              break;
             }
           }
+        }
+        // Process matches (separate loop to avoid TreeWalker invalidation)
+        matches.forEach(function(m) {
+          var parent = m.textNode.parentElement;
+          if (!parent || parent.querySelector('.arena-profile-link')) return;
+          var link = document.createElement('a');
+          link.href = _agentProfileMap[m.agentName];
+          link.className = 'arena-profile-link';
+          link.style.cssText = 'font-size:9px;color:#8247e5;font-weight:700;margin-left:6px;text-decoration:none;z-index:10;position:relative;';
+          link.textContent = '\u2197 Profile';
+          link.addEventListener('click', function(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            window.location.href = this.href;
+          });
+          parent.appendChild(link);
         });
       });
     }
