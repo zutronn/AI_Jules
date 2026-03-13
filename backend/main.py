@@ -192,8 +192,9 @@ async def restart_trading(arena_id: Optional[int] = None, db: Session = Depends(
             except (asyncio.CancelledError, Exception):
                 pass
 
-        # Start fresh task
+        # Start fresh task and give watchdog a grace period
         running_tasks[arena.id] = asyncio.create_task(run_autonomous_trading(arena.id))
+        last_successful_cycle[arena.id] = datetime.datetime.utcnow()  # Grace period for watchdog
         restarted.append(arena.id)
 
         # Log the restart
@@ -223,6 +224,7 @@ async def create_arena(arena: schemas.ArenaCreate, db: Session = Depends(get_db)
 
     if db_arena.is_active:
         running_tasks[db_arena.id] = asyncio.create_task(run_autonomous_trading(db_arena.id))
+        last_successful_cycle[db_arena.id] = datetime.datetime.utcnow()  # Grace period for watchdog
 
     return db_arena
 
@@ -246,6 +248,7 @@ async def update_arena(arena_id: int, arena_update: schemas.ArenaUpdate, db: Ses
 
     if db_arena.is_active:
         running_tasks[arena_id] = asyncio.create_task(run_autonomous_trading(arena_id))
+        last_successful_cycle[arena_id] = datetime.datetime.utcnow()  # Grace period for watchdog
 
     return db_arena
 
@@ -447,7 +450,9 @@ async def trading_watchdog():
                         running_tasks[arena.id].cancel()
                         try:
                             await asyncio.wait_for(running_tasks[arena.id], timeout=5)
-                        except (asyncio.CancelledError, asyncio.TimeoutError, Exception):
+                        except asyncio.CancelledError:
+                            raise  # Don't swallow our own cancellation during shutdown
+                        except (asyncio.TimeoutError, Exception):
                             pass
 
                     # Start fresh task and give it a grace period
