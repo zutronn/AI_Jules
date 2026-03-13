@@ -1,4 +1,6 @@
 import asyncio
+import datetime
+import traceback
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,6 +14,12 @@ from .services.stock_data import StockDataService
 
 # Dictionary to keep track of running tasks for each arena
 running_tasks: Dict[int, asyncio.Task] = {}
+
+# Track last successful cycle per arena for watchdog
+last_successful_cycle: Dict[int, datetime.datetime] = {}
+
+# Maximum time (seconds) before watchdog considers a trading loop stale
+WATCHDOG_STALE_THRESHOLD = 300  # 5 minutes
 
 def seed_data():
     db = database.SessionLocal()
@@ -64,8 +72,14 @@ async def lifespan(app: FastAPI):
     for arena in arenas:
         running_tasks[arena.id] = asyncio.create_task(run_autonomous_trading(arena.id))
     db.close()
+
+    # Start the watchdog that monitors and restarts stale trading loops
+    watchdog_task = asyncio.create_task(trading_watchdog())
+
     yield
-    # Shutdown: Cancel all tasks
+
+    # Shutdown: Cancel watchdog and all trading tasks
+    watchdog_task.cancel()
     for task in running_tasks.values():
         task.cancel()
 
@@ -91,7 +105,107 @@ def get_db():
 
 @app.get("/health")
 def health_check():
+    """Basic health check — confirms the API process is alive."""
     return {"status": "healthy"}
+
+@app.get("/health/trading")
+def trading_health_check(db: Session = Depends(get_db)):
+    """
+    Deep health check — verifies trading loops are active and producing trades.
+    Returns per-arena status with last trade time and staleness detection.
+    """
+    arenas = db.query(models.Arena).filter(models.Arena.is_active == 1).all()
+    results = []
+    now = datetime.datetime.utcnow()
+
+    for arena in arenas:
+        last_trade = (
+            db.query(models.Trade)
+            .filter(models.Trade.arena_id == arena.id)
+            .order_by(models.Trade.timestamp.desc())
+            .first()
+        )
+        last_log = (
+            db.query(models.SystemLog)
+            .filter(models.SystemLog.arena_id == arena.id)
+            .order_by(models.SystemLog.timestamp.desc())
+            .first()
+        )
+
+        task_running = arena.id in running_tasks and not running_tasks[arena.id].done()
+        last_cycle = last_successful_cycle.get(arena.id)
+        cycle_stale = (
+            last_cycle is None
+            or (now - last_cycle).total_seconds() > WATCHDOG_STALE_THRESHOLD
+        )
+
+        status = "healthy"
+        if not task_running:
+            status = "down"
+        elif cycle_stale:
+            status = "degraded"
+        elif last_trade and (now - last_trade.timestamp).total_seconds() > 86400:
+            status = "degraded"  # No trade in 24h
+
+        results.append({
+            "arena_id": arena.id,
+            "arena_name": arena.name,
+            "status": status,
+            "task_running": task_running,
+            "last_trade": last_trade.timestamp.isoformat() if last_trade else None,
+            "last_log": last_log.timestamp.isoformat() if last_log else None,
+            "last_cycle": last_cycle.isoformat() if last_cycle else None,
+            "cycle_stale": cycle_stale,
+        })
+
+    all_healthy = all(r["status"] == "healthy" for r in results)
+    return {
+        "overall": "healthy" if all_healthy else "degraded",
+        "arenas": results,
+        "active_tasks": len([t for t in running_tasks.values() if not t.done()]),
+        "total_arenas": len(arenas),
+        "checked_at": now.isoformat(),
+    }
+
+@app.post("/trading/restart")
+async def restart_trading(arena_id: Optional[int] = None, db: Session = Depends(get_db)):
+    """
+    Force-restart trading loop(s). If arena_id is provided, restart only that arena.
+    Otherwise restart all active arenas.
+    """
+    restarted = []
+
+    if arena_id:
+        arenas = db.query(models.Arena).filter(
+            models.Arena.id == arena_id, models.Arena.is_active == 1
+        ).all()
+    else:
+        arenas = db.query(models.Arena).filter(models.Arena.is_active == 1).all()
+
+    for arena in arenas:
+        # Cancel existing task if running
+        if arena.id in running_tasks:
+            running_tasks[arena.id].cancel()
+            try:
+                await running_tasks[arena.id]
+            except (asyncio.CancelledError, Exception):
+                pass
+
+        # Start fresh task
+        running_tasks[arena.id] = asyncio.create_task(run_autonomous_trading(arena.id))
+        restarted.append(arena.id)
+
+        # Log the restart
+        log = models.SystemLog(
+            arena_id=arena.id,
+            level="WARNING",
+            source="TradingRestart",
+            message=f"Trading loop manually restarted for Arena {arena.id} ({arena.name})"
+        )
+        db.add(log)
+
+    db.commit()
+    return {"restarted_arenas": restarted, "count": len(restarted)}
 
 # --- Arena Endpoints ---
 
@@ -169,44 +283,183 @@ def run_cycle(db: Session, arena_id: int):
 
     for symbol in tickers:
         symbol = symbol.strip()
-        market_data = stock_service.get_realtime_data(symbol)
-        decision = orchestrator.run_trading_cycle(market_data, arena_id)
+        try:
+            market_data = stock_service.get_realtime_data(symbol)
+            decision = orchestrator.run_trading_cycle(market_data, arena_id)
 
-        if decision in ["BUY", "SELL"]:
-            trade = models.Trade(
+            if decision in ["BUY", "SELL"]:
+                trade = models.Trade(
+                    arena_id=arena_id,
+                    symbol=symbol,
+                    side=decision,
+                    price=market_data["price"],
+                    amount=10.0
+                )
+                db.add(trade)
+        except Exception as e:
+            # Log per-symbol errors but continue processing other symbols
+            error_log = models.SystemLog(
                 arena_id=arena_id,
-                symbol=symbol,
-                side=decision,
-                price=market_data["price"],
-                amount=10.0
+                level="ERROR",
+                source="TradingCycle",
+                message=f"Error processing {symbol}: {str(e)}"
             )
-            db.add(trade)
+            db.add(error_log)
 
     db.commit()
 
     # Run monitoring and self-improvement
-    monitoring = MonitoringAgent(db)
-    monitoring.check_system_health(arena_id)
+    try:
+        monitoring = MonitoringAgent(db)
+        monitoring.check_system_health(arena_id)
 
-    si_agent = SelfImprovementAgent(db)
-    si_agent.analyze_performance(arena_id)
+        si_agent = SelfImprovementAgent(db)
+        si_agent.analyze_performance(arena_id)
+    except Exception as e:
+        print(f"Post-cycle monitoring error for Arena {arena_id}: {e}")
 
 async def run_autonomous_trading(arena_id: int):
+    """
+    Main trading loop for an arena. Runs indefinitely with:
+    - Proper DB session cleanup (try/finally)
+    - Exponential backoff on repeated failures (caps at 5 min)
+    - Logs errors to DB for visibility
+    - Updates last_successful_cycle for watchdog monitoring
+    - Never exits unless arena is deactivated or task is cancelled
+    """
     print(f"Starting autonomous trading cycle for Arena {arena_id}...")
+    consecutive_errors = 0
+    max_backoff = 300  # 5 minutes max backoff
+
     while True:
+        db = None
         try:
             db = database.SessionLocal()
             arena = db.query(models.Arena).filter(models.Arena.id == arena_id).first()
             if not arena or not arena.is_active:
-                db.close()
+                print(f"Arena {arena_id} not found or inactive. Stopping trading loop.")
                 break
 
             run_cycle(db, arena_id)
             cycle_time = arena.cycle_time
+
+            # Mark successful cycle for watchdog
+            last_successful_cycle[arena_id] = datetime.datetime.utcnow()
+            consecutive_errors = 0  # Reset error counter on success
+
             db.close()
+            db = None
             await asyncio.sleep(cycle_time)
+
         except asyncio.CancelledError:
-            break
+            print(f"Trading loop for Arena {arena_id} cancelled.")
+            raise  # Re-raise so the task actually gets cancelled
+
         except Exception as e:
-            print(f"Error in trading cycle for Arena {arena_id}: {e}")
-            await asyncio.sleep(10)
+            consecutive_errors += 1
+            backoff = min(10 * (2 ** (consecutive_errors - 1)), max_backoff)
+            error_msg = f"Error in trading cycle for Arena {arena_id} (attempt #{consecutive_errors}): {e}"
+            print(error_msg)
+            print(traceback.format_exc())
+
+            # Try to log error to DB
+            try:
+                if db is None:
+                    db = database.SessionLocal()
+                error_log = models.SystemLog(
+                    arena_id=arena_id,
+                    level="ERROR",
+                    source="TradingLoop",
+                    message=error_msg
+                )
+                db.add(error_log)
+                db.commit()
+            except Exception:
+                pass  # DB logging failed too, just continue
+
+            await asyncio.sleep(backoff)
+
+        finally:
+            if db is not None:
+                try:
+                    db.close()
+                except Exception:
+                    pass
+
+
+async def trading_watchdog():
+    """
+    Watchdog process that runs every 60 seconds and:
+    1. Checks if any trading tasks have died (task.done())
+    2. Checks if any active arenas are missing a running task
+    3. Checks if any trading loop is stale (no successful cycle recently)
+    4. Automatically restarts dead/stale trading loops
+    5. Logs all restarts to DB for audit trail
+    """
+    print("Trading watchdog started. Monitoring trading loops...")
+    await asyncio.sleep(30)  # Initial delay to let things start up
+
+    while True:
+        try:
+            db = database.SessionLocal()
+            arenas = db.query(models.Arena).filter(models.Arena.is_active == 1).all()
+            now = datetime.datetime.utcnow()
+
+            for arena in arenas:
+                needs_restart = False
+                reason = ""
+
+                # Check 1: Task doesn't exist
+                if arena.id not in running_tasks:
+                    needs_restart = True
+                    reason = "no task found"
+
+                # Check 2: Task exists but is done (crashed)
+                elif running_tasks[arena.id].done():
+                    needs_restart = True
+                    # Retrieve exception if any
+                    try:
+                        exc = running_tasks[arena.id].exception()
+                        reason = f"task crashed: {exc}"
+                    except (asyncio.CancelledError, asyncio.InvalidStateError):
+                        reason = "task was cancelled or in invalid state"
+
+                # Check 3: Task is running but stale (no successful cycle)
+                elif arena.id in last_successful_cycle:
+                    elapsed = (now - last_successful_cycle[arena.id]).total_seconds()
+                    if elapsed > WATCHDOG_STALE_THRESHOLD:
+                        needs_restart = True
+                        reason = f"stale - no successful cycle for {int(elapsed)}s"
+
+                if needs_restart:
+                    print(f"Watchdog: Restarting trading for Arena {arena.id} ({arena.name}). Reason: {reason}")
+
+                    # Cancel old task if it exists
+                    if arena.id in running_tasks:
+                        running_tasks[arena.id].cancel()
+                        try:
+                            await asyncio.wait_for(running_tasks[arena.id], timeout=5)
+                        except (asyncio.CancelledError, asyncio.TimeoutError, Exception):
+                            pass
+
+                    # Start fresh task
+                    running_tasks[arena.id] = asyncio.create_task(run_autonomous_trading(arena.id))
+
+                    # Log the watchdog restart
+                    log = models.SystemLog(
+                        arena_id=arena.id,
+                        level="WARNING",
+                        source="Watchdog",
+                        message=f"Auto-restarted trading loop. Reason: {reason}"
+                    )
+                    db.add(log)
+
+            db.commit()
+            db.close()
+
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            print(f"Watchdog error: {e}")
+
+        await asyncio.sleep(60)  # Check every 60 seconds

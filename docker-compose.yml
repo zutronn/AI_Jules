@@ -3,14 +3,27 @@ services:
     build: ./backend
     ports:
       - "8000:8000"
+    restart: always
     volumes:
       - ./backend:/app
+      - db-data:/app/data
     environment:
-      - DATABASE_URL=sqlite:///./rockalpha.db
+      - DATABASE_URL=sqlite:///./data/rockalpha.db
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
 
   frontend:
     build: ./frontend
     ports:
       - "3000:3000"
+    restart: always
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+
+volumes:
+  db-data:
