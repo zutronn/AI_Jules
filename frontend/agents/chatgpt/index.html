@@ -101,6 +101,49 @@
             .agent-hero { padding: 32px 16px 24px; }
             .wallet-section, .stats-section, .health-section, .config-section, .token-section { padding-left: 16px; padding-right: 16px; }
         }
+
+        /* Buy Token Section */
+        .buy-section { padding: 0 32px 32px; max-width: 1200px; margin: 0 auto; }
+        .buy-card { background: linear-gradient(135deg, #111318, #161822); border: 1px solid #8247e5; border-radius: 16px; padding: 32px; position: relative; overflow: hidden; }
+        .buy-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, #8247e5, #a78bfa, #8247e5); }
+        .buy-card-title { font-size: 20px; font-weight: 800; color: #fff; margin-bottom: 4px; display: flex; align-items: center; gap: 10px; }
+        .buy-card-subtitle { font-size: 13px; color: #888; margin-bottom: 24px; }
+        .buy-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+        .buy-left { display: flex; flex-direction: column; gap: 16px; }
+        .buy-right { background: #0a0b0f; border: 1px solid #1e2030; border-radius: 12px; padding: 24px; }
+        .buy-input-group { display: flex; flex-direction: column; gap: 6px; }
+        .buy-input-label { font-size: 12px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.8px; }
+        .buy-input-row { display: flex; gap: 8px; align-items: stretch; }
+        .buy-input { flex: 1; background: #0a0b0f; border: 1px solid #2a2d3a; border-radius: 10px; padding: 14px 16px; font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 700; color: #fff; outline: none; transition: border-color 0.2s; }
+        .buy-input:focus { border-color: #8247e5; }
+        .buy-input::placeholder { color: #444; }
+        .buy-token-badge { background: #1e2030; border: 1px solid #2a2d3a; border-radius: 10px; padding: 14px 16px; display: flex; align-items: center; gap: 8px; font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 700; color: #a78bfa; white-space: nowrap; }
+        .buy-preset-row { display: flex; gap: 8px; }
+        .buy-preset { background: #1e2030; border: 1px solid #2a2d3a; border-radius: 8px; padding: 8px 16px; font-size: 12px; font-weight: 700; color: #888; cursor: pointer; transition: all 0.2s; font-family: 'JetBrains Mono', monospace; }
+        .buy-preset:hover { border-color: #8247e5; color: #a78bfa; }
+        .buy-pay-label { font-size: 12px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; }
+        .buy-pay-row { display: flex; gap: 8px; }
+        .buy-pay-option { flex: 1; background: #1e2030; border: 2px solid #2a2d3a; border-radius: 10px; padding: 12px; text-align: center; cursor: pointer; transition: all 0.2s; }
+        .buy-pay-option.active { border-color: #8247e5; background: rgba(130,71,229,0.08); }
+        .buy-pay-option:hover { border-color: #8247e5; }
+        .buy-pay-name { font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 2px; }
+        .buy-pay-sub { font-size: 11px; color: #666; }
+        .buy-summary-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #1a1d2a; }
+        .buy-summary-row:last-child { border-bottom: none; }
+        .buy-summary-key { font-size: 13px; color: #888; }
+        .buy-summary-val { font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 700; color: #fff; }
+        .buy-summary-val.highlight { color: #a78bfa; font-size: 16px; }
+        .buy-summary-val.green { color: #22c55e; }
+        .buy-curve-note { font-size: 11px; color: #555; margin-top: 12px; line-height: 1.5; }
+        .buy-btn { width: 100%; background: linear-gradient(135deg, #8247e5, #6f3cc4); color: white; padding: 16px 28px; border-radius: 12px; font-weight: 800; font-size: 16px; border: none; cursor: pointer; transition: all 0.2s; font-family: 'Inter', sans-serif; letter-spacing: 0.3px; margin-top: 16px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .buy-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(130,71,229,0.3); }
+        .buy-btn:active { transform: translateY(0); }
+        .buy-disclaimer { font-size: 11px; color: #444; text-align: center; margin-top: 12px; line-height: 1.5; }
+        .buy-polygon-badge { display: inline-flex; align-items: center; gap: 4px; background: rgba(130,71,229,0.15); color: #a78bfa; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 4px; }
+        @media (max-width: 768px) {
+            .buy-grid { grid-template-columns: 1fr; }
+            .buy-section { padding-left: 16px; padding-right: 16px; }
+        }
     </style>
 </head>
 <body>
@@ -239,9 +282,157 @@
                 <div class="token-stat"><div class="token-stat-label">Supply</div><div class="token-stat-val">142,500</div></div>
                 <div class="token-stat"><div class="token-stat-label">Market Cap</div><div class="token-stat-val">&#36;12,073</div></div>
             </div>
-            <a href="/tokens/index.html" class="token-cta">Learn More</a>
+            <a href="#buy-token" class="token-cta" style="margin-right:8px;">Buy Now</a><a href="/tokens/index.html" class="token-cta" style="background:transparent;border:1px solid #8247e5;color:#a78bfa;">Learn More</a>
         </div>
     </section>
+
+
+    <section class="buy-section" id="buy-token">
+        <div class="buy-card">
+            <div class="buy-card-title">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8247e5" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                Buy &#36;CGPT Token
+            </div>
+            <div class="buy-card-subtitle">Purchase tokens via Polygon bonding curve &#183; Price increases with supply</div>
+            <div class="buy-grid">
+                <div class="buy-left">
+                    <div class="buy-input-group">
+                        <div class="buy-input-label">Amount to Buy</div>
+                        <div class="buy-input-row">
+                            <input class="buy-input" type="number" id="buyAmount" placeholder="0" min="1" step="1" value="100" oninput="updateBuyCalc()">
+                            <div class="buy-token-badge">&#36;CGPT</div>
+                        </div>
+                    </div>
+                    <div class="buy-preset-row">
+                        <button class="buy-preset" onclick="setBuyAmount(100)">100</button>
+                        <button class="buy-preset" onclick="setBuyAmount(500)">500</button>
+                        <button class="buy-preset" onclick="setBuyAmount(1000)">1K</button>
+                        <button class="buy-preset" onclick="setBuyAmount(5000)">5K</button>
+                        <button class="buy-preset" onclick="setBuyAmount(10000)">10K</button>
+                    </div>
+                    <div>
+                        <div class="buy-pay-label">Pay With</div>
+                        <div class="buy-pay-row">
+                            <div class="buy-pay-option active" onclick="selectPay(this,'USDC')">
+                                <div class="buy-pay-name">USDC</div>
+                                <div class="buy-pay-sub">Stablecoin</div>
+                            </div>
+                            <div class="buy-pay-option" onclick="selectPay(this,'MATIC')">
+                                <div class="buy-pay-name">MATIC</div>
+                                <div class="buy-pay-sub">Polygon Native</div>
+                            </div>
+                            <div class="buy-pay-option" onclick="selectPay(this,'ETH')">
+                                <div class="buy-pay-name">ETH</div>
+                                <div class="buy-pay-sub">Bridged</div>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="buy-btn" onclick="handleBuy()">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M2 12h20"/></svg>
+                        Buy &#36;CGPT Tokens
+                    </button>
+                    <div class="buy-disclaimer">Powered by Polygon PoS &#183; Gas fee &lt; &#36;0.01 &#183; Bonding curve pricing &#183; Not financial advice</div>
+                </div>
+                <div class="buy-right">
+                    <div style="font-size:13px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:16px;">Order Summary</div>
+                    <div class="buy-summary-row">
+                        <span class="buy-summary-key">Current Price</span>
+                        <span class="buy-summary-val" id="currentPrice">&#36;0.0847</span>
+                    </div>
+                    <div class="buy-summary-row">
+                        <span class="buy-summary-key">Tokens to Buy</span>
+                        <span class="buy-summary-val" id="tokenCount">100</span>
+                    </div>
+                    <div class="buy-summary-row">
+                        <span class="buy-summary-key">Avg Price per Token</span>
+                        <span class="buy-summary-val highlight" id="avgPrice">&#36;0.0847</span>
+                    </div>
+                    <div class="buy-summary-row">
+                        <span class="buy-summary-key">Price After Purchase</span>
+                        <span class="buy-summary-val green" id="newPrice">&#36;0.0847</span>
+                    </div>
+                    <div class="buy-summary-row">
+                        <span class="buy-summary-key">Price Impact</span>
+                        <span class="buy-summary-val" id="priceImpact">+0.14%</span>
+                    </div>
+                    <div class="buy-summary-row" style="border-top:1px solid #2a2d3a;padding-top:14px;margin-top:4px;">
+                        <span class="buy-summary-key" style="font-weight:700;color:#fff;">Estimated Total</span>
+                        <span class="buy-summary-val highlight" id="totalCost" style="font-size:20px;">&#36;0.00</span>
+                    </div>
+                    <div class="buy-summary-row">
+                        <span class="buy-summary-key">Network Fee</span>
+                        <span class="buy-summary-val" style="color:#22c55e;">&lt; &#36;0.01</span>
+                    </div>
+                    <div class="buy-summary-row">
+                        <span class="buy-summary-key">Platform Fee (0.5%)</span>
+                        <span class="buy-summary-val" id="platformFee">&#36;0.00</span>
+                    </div>
+                    <div class="buy-curve-note">
+                        <span class="buy-polygon-badge">BONDING CURVE</span> &#160;Price = k &#215; Supply&#178; &#183; k = 4.16e-09 &#183; Current supply: 142,500
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <script>
+    (function() {
+        var K = 4.16e-09;
+        var SUPPLY = 142500;
+        var TOKEN = 'CGPT';
+
+        function calcPrice(s) { return K * s * s; }
+
+        function calcCost(currentSupply, amount) {
+            var s0 = currentSupply;
+            var s1 = currentSupply + amount;
+            return K * (s1*s1*s1 - s0*s0*s0) / 3;
+        }
+
+        window.updateBuyCalc = function() {
+            var amount = parseInt(document.getElementById('buyAmount').value) || 0;
+            if (amount <= 0) amount = 0;
+
+            var currentP = calcPrice(SUPPLY);
+            var newP = calcPrice(SUPPLY + amount);
+            var totalC = calcCost(SUPPLY, amount);
+            var avgP = amount > 0 ? totalC / amount : currentP;
+            var impact = currentP > 0 ? ((newP - currentP) / currentP * 100) : 0;
+            var fee = totalC * 0.005;
+
+            document.getElementById('currentPrice').textContent = '$' + currentP.toFixed(4);
+            document.getElementById('tokenCount').textContent = amount.toLocaleString();
+            document.getElementById('avgPrice').textContent = '$' + avgP.toFixed(4);
+            document.getElementById('newPrice').textContent = '$' + newP.toFixed(4);
+            document.getElementById('priceImpact').textContent = '+' + impact.toFixed(2) + '%';
+            document.getElementById('totalCost').textContent = '$' + totalC.toFixed(2);
+            document.getElementById('platformFee').textContent = '$' + fee.toFixed(2);
+        };
+
+        window.setBuyAmount = function(val) {
+            document.getElementById('buyAmount').value = val;
+            updateBuyCalc();
+        };
+
+        window.selectPay = function(el, method) {
+            document.querySelectorAll('.buy-pay-option').forEach(function(o) { o.classList.remove('active'); });
+            el.classList.add('active');
+        };
+
+        window.handleBuy = function() {
+            var amount = parseInt(document.getElementById('buyAmount').value) || 0;
+            if (amount <= 0) { alert('Please enter an amount to buy.'); return; }
+            var totalC = calcCost(SUPPLY, amount);
+            var msg = 'Purchase ' + amount.toLocaleString() + ' $' + TOKEN + ' tokens for $' + totalC.toFixed(2) + '?\n\nThis will execute on Polygon PoS via bonding curve contract.\n\n(Smart contract integration coming soon)';
+            if (confirm(msg)) {
+                alert('Transaction submitted! Smart contract integration is coming soon. Your order for ' + amount.toLocaleString() + ' $' + TOKEN + ' has been queued.');
+            }
+        };
+
+        // Initial calc
+        updateBuyCalc();
+    })();
+    </script>
 
     <footer>lawliet studios &copy; 2026 &middot; Built on Polygon</footer>
 </body>
