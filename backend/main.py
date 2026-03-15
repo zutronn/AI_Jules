@@ -357,11 +357,17 @@ def _update_portfolio(db: Session, trade: models.Trade):
         pos.quantity = new_qty
         pos.total_invested += cost
     elif trade.side == "SELL":
-        revenue = trade.price * trade.amount
+        actual_sell_qty = min(trade.amount, pos.quantity)
+        if actual_sell_qty <= 0:
+            # Nothing to sell — update current_price but skip P&L/revenue
+            pos.current_price = trade.price
+            pos.updated_at = datetime.datetime.utcnow()
+            db.commit()
+            return
+        revenue = trade.price * actual_sell_qty
         # Realize P&L on sold shares
-        if pos.quantity > 0:
-            pos.realized_pnl += (trade.price - pos.avg_entry_price) * trade.amount
-        pos.quantity = max(pos.quantity - trade.amount, 0.0)
+        pos.realized_pnl += (trade.price - pos.avg_entry_price) * actual_sell_qty
+        pos.quantity -= actual_sell_qty
         pos.total_returned += revenue
 
     pos.current_price = trade.price
