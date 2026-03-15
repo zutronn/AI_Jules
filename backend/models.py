@@ -43,3 +43,16 @@ class AIResponse(Base):
     prompt = Column(Text)
     response = Column(Text)
     timestamp = Column(DateTime, default=datetime.datetime.utcnow)
+
+class Portfolio(Base):
+    __tablename__ = "portfolio"
+    id = Column(Integer, primary_key=True, index=True)
+    arena_id = Column(Integer, index=True)
+    symbol = Column(String, index=True)
+    quantity = Column(Float, default=0.0)        # Net shares held (positive = long)
+    avg_entry_price = Column(Float, default=0.0) # Weighted average entry price
+    current_price = Column(Float, default=0.0)   # Latest market price
+    total_invested = Column(Float, default=0.0)  # Total $ spent buying
+    total_returned = Column(Float, default=0.0)  # Total $ received from sells
+    realized_pnl = Column(Float, default=0.0)    # Locked-in profit/loss from closed trades
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)

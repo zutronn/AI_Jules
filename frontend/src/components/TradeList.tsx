@@ -1,14 +1,19 @@
-import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, PieChart, List } from 'lucide-react';
+import { useState } from 'react';
+import { PieChart, List } from 'lucide-react';
 
-const TradeList = ({ trades }: { trades: any[] }) => {
+const SYMBOL_COLORS: Record<string, string> = {
+  BTC: 'bg-orange-500', ETH: 'bg-blue-600', SOL: 'bg-purple-500',
+  DULL: 'bg-blue-600', GDX: 'bg-orange-500', SIL: 'bg-green-500',
+  TSLA: 'bg-red-500', NVDA: 'bg-green-600', AMD: 'bg-red-600',
+  AMZN: 'bg-yellow-500', META: 'bg-blue-500', NFLX: 'bg-red-500',
+};
+
+const TradeList = ({ trades, portfolio }: { trades: any[]; portfolio: any }) => {
   const [activeTab, setActiveTab] = useState<'Portfolio' | 'Orders'>('Portfolio');
 
-  const portfolio = [
-    { symbol: 'DULL', asset: '$3900.99', assetPct: '36.6%', pnl: '+$689.67', color: 'bg-blue-600' },
-    { symbol: 'GDX', asset: '$2100.50', assetPct: '19.8%', pnl: '-$120.30', color: 'bg-orange-500' },
-    { symbol: 'SIL', asset: '$1500.20', assetPct: '14.1%', pnl: '+$45.20', color: 'bg-green-500' },
-  ];
+  const positions = portfolio?.positions ?? [];
+  const totalAssets = portfolio?.total_assets ?? 0;
+  const totalPnl = portfolio?.total_pnl ?? 0;
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -34,53 +39,59 @@ const TradeList = ({ trades }: { trades: any[] }) => {
                <div className="w-5 h-5 bg-purple-600 rounded-full flex items-center justify-center text-white">
                  <PieChart className="w-3 h-3" />
                </div>
-               <span className="text-xs font-black">DeepSeek V3.1</span>
-            </div>
-
-            <div className="flex items-center justify-between">
-               <ChevronLeft className="w-4 h-4 text-gray-300 cursor-pointer" />
-               <div className="flex items-center space-x-1">
-                 <div className="w-8 h-1 bg-purple-600 rounded-full"></div>
-                 <div className="w-1 h-1 bg-gray-200 rounded-full"></div>
-                 <div className="w-1 h-1 bg-gray-200 rounded-full"></div>
-               </div>
-               <ChevronRight className="w-4 h-4 text-gray-300 cursor-pointer" />
+               <span className="text-xs font-black">Live Portfolio</span>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-gray-50 p-4 rounded-2xl">
                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Assets</p>
-                <p className="text-sm font-black text-gray-900">$10650.16</p>
+                <p className="text-sm font-black text-gray-900">${totalAssets.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
               </div>
               <div className="bg-gray-50 p-4 rounded-2xl">
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Today's P&L</p>
-                <p className="text-sm font-black text-purple-600">+$0.00</p>
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total P&L</p>
+                <p className={`text-sm font-black ${totalPnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                  {totalPnl >= 0 ? '+' : ''}${totalPnl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
               </div>
             </div>
 
-            <table className="w-full">
-              <thead>
-                <tr className="text-[10px] font-black text-gray-400 uppercase tracking-widest text-left">
-                  <th className="pb-4">symbol</th>
-                  <th className="pb-4">asset</th>
-                  <th className="pb-4">asset%</th>
-                  <th className="pb-4 text-right">p&l</th>
-                </tr>
-              </thead>
-              <tbody className="space-y-4">
-                {portfolio.map((item, i) => (
-                  <tr key={i} className="text-xs font-bold">
-                    <td className="py-2 flex items-center space-x-2">
-                       <div className={`w-5 h-5 ${item.color} rounded flex items-center justify-center text-white text-[8px]`}>{item.symbol[0]}</div>
-                       <span>{item.symbol}</span>
-                    </td>
-                    <td className="py-2 text-gray-600">{item.asset}</td>
-                    <td className="py-2 text-gray-400">{item.assetPct}</td>
-                    <td className={`py-2 text-right ${item.pnl.startsWith('+') ? 'text-green-500' : 'text-red-500'}`}>{item.pnl}</td>
+            {positions.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-gray-400 space-y-2">
+                <PieChart className="w-8 h-8 opacity-20" />
+                <p className="text-[10px] font-black uppercase tracking-widest">No positions yet</p>
+                <p className="text-[10px] text-gray-300">Trades will appear here once agents start executing</p>
+              </div>
+            ) : (
+              <table className="w-full">
+                <thead>
+                  <tr className="text-[10px] font-black text-gray-400 uppercase tracking-widest text-left">
+                    <th className="pb-4">symbol</th>
+                    <th className="pb-4">asset</th>
+                    <th className="pb-4">asset%</th>
+                    <th className="pb-4 text-right">p&l</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {positions.map((pos: any, i: number) => {
+                    const assetPct = totalAssets > 0 ? ((pos.market_value / totalAssets) * 100).toFixed(1) : '0.0';
+                    const pnl = pos.unrealized_pnl;
+                    const pnlStr = (pnl >= 0 ? '+$' : '-$') + Math.abs(pnl).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    const color = SYMBOL_COLORS[pos.symbol] || 'bg-gray-500';
+                    return (
+                      <tr key={i} className="text-xs font-bold">
+                        <td className="py-2 flex items-center space-x-2">
+                           <div className={`w-5 h-5 ${color} rounded flex items-center justify-center text-white text-[8px]`}>{pos.symbol[0]}</div>
+                           <span>{pos.symbol}</span>
+                        </td>
+                        <td className="py-2 text-gray-600">${pos.market_value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td className="py-2 text-gray-400">{assetPct}%</td>
+                        <td className={`py-2 text-right ${pnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>{pnlStr}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
           </div>
         ) : (
           <div className="space-y-4">

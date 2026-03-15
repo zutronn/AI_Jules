@@ -273,6 +273,102 @@ def read_ai_responses(arena_id: Optional[int] = None, skip: int = 0, limit: int 
         query = query.filter(models.AIResponse.arena_id == arena_id)
     return query.order_by(models.AIResponse.timestamp.desc()).offset(skip).limit(limit).all()
 
+@app.get("/portfolio")
+def read_portfolio(arena_id: Optional[int] = None, db: Session = Depends(get_db)):
+    """Get portfolio positions for an arena, with computed P&L."""
+    query = db.query(models.Portfolio)
+    if arena_id:
+        query = query.filter(models.Portfolio.arena_id == arena_id)
+    positions = query.all()
+
+    position_list = []
+    total_assets = 0.0
+    total_pnl = 0.0
+    total_realized = 0.0
+
+    for pos in positions:
+        unrealized = (pos.current_price - pos.avg_entry_price) * pos.quantity if pos.quantity > 0 else 0.0
+        market_value = pos.current_price * pos.quantity
+        total_assets += market_value
+        total_pnl += unrealized + pos.realized_pnl
+        total_realized += pos.realized_pnl
+        position_list.append({
+            "id": pos.id,
+            "arena_id": pos.arena_id,
+            "symbol": pos.symbol,
+            "quantity": pos.quantity,
+            "avg_entry_price": round(pos.avg_entry_price, 2),
+            "current_price": round(pos.current_price, 2),
+            "market_value": round(market_value, 2),
+            "unrealized_pnl": round(unrealized, 2),
+            "realized_pnl": round(pos.realized_pnl, 2),
+            "total_invested": round(pos.total_invested, 2),
+            "total_returned": round(pos.total_returned, 2),
+            "updated_at": pos.updated_at.isoformat() if pos.updated_at else None,
+        })
+
+    return {
+        "arena_id": arena_id,
+        "positions": position_list,
+        "total_assets": round(total_assets, 2),
+        "total_pnl": round(total_pnl, 2),
+        "total_realized_pnl": round(total_realized, 2),
+    }
+
+# --- Portfolio Helper ---
+
+def _update_portfolio(db: Session, trade: models.Trade):
+    """
+    Update portfolio position after a trade is executed.
+    BUY: increases quantity, updates avg entry price (weighted average).
+    SELL: decreases quantity, records realized P&L.
+    Also updates current_price to the latest trade price.
+    """
+    pos = (
+        db.query(models.Portfolio)
+        .filter(
+            models.Portfolio.arena_id == trade.arena_id,
+            models.Portfolio.symbol == trade.symbol,
+        )
+        .first()
+    )
+
+    if pos is None:
+        pos = models.Portfolio(
+            arena_id=trade.arena_id,
+            symbol=trade.symbol,
+            quantity=0.0,
+            avg_entry_price=0.0,
+            current_price=trade.price,
+            total_invested=0.0,
+            total_returned=0.0,
+            realized_pnl=0.0,
+        )
+        db.add(pos)
+
+    if trade.side == "BUY":
+        cost = trade.price * trade.amount
+        new_qty = pos.quantity + trade.amount
+        # Weighted average entry price
+        if new_qty > 0:
+            pos.avg_entry_price = (
+                (pos.avg_entry_price * pos.quantity) + cost
+            ) / new_qty
+        pos.quantity = new_qty
+        pos.total_invested += cost
+    elif trade.side == "SELL":
+        revenue = trade.price * trade.amount
+        # Realize P&L on sold shares
+        if pos.quantity > 0:
+            pos.realized_pnl += (trade.price - pos.avg_entry_price) * trade.amount
+        pos.quantity = max(pos.quantity - trade.amount, 0.0)
+        pos.total_returned += revenue
+
+    pos.current_price = trade.price
+    pos.updated_at = datetime.datetime.utcnow()
+    db.commit()
+
+
 # --- Autonomous Trading Logic ---
 
 def run_cycle(db: Session, arena_id: int):
@@ -321,6 +417,10 @@ def run_cycle(db: Session, arena_id: int):
     for error_log in pending_error_logs:
         db.add(error_log)
     db.commit()
+
+    # Update portfolio positions based on executed trades
+    for trade in pending_trades:
+        _update_portfolio(db, trade)
 
     # Run monitoring and self-improvement
     try:

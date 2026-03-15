@@ -71,3 +71,25 @@ class AIResponse(AIResponseBase):
     id: int
     timestamp: datetime
     model_config = ConfigDict(from_attributes=True)
+
+class PortfolioBase(BaseModel):
+    arena_id: int
+    symbol: str
+    quantity: float
+    avg_entry_price: float
+    current_price: float
+    total_invested: float
+    total_returned: float
+    realized_pnl: float
+
+class Portfolio(PortfolioBase):
+    id: int
+    updated_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+
+class PortfolioSummary(BaseModel):
+    arena_id: int
+    positions: List["Portfolio"]
+    total_assets: float       # Sum of current_price * quantity for all positions
+    total_pnl: float          # Sum of unrealized + realized P&L
+    total_realized_pnl: float # Sum of realized P&L only
