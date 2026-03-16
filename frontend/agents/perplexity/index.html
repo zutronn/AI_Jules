@@ -144,6 +144,42 @@
             .buy-grid { grid-template-columns: 1fr; }
             .buy-section { padding-left: 16px; padding-right: 16px; }
         }
+    
+    /* Performance Chart & Metrics */
+    .perf-section { padding: 0 32px 32px; max-width: 1200px; margin: 0 auto; }
+    .perf-card { background: #111318; border: 1px solid #1e2030; border-radius: 16px; padding: 28px; }
+    .perf-card-title { font-size: 13px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+    .perf-chart-wrap { position: relative; background: #0a0b0f; border: 1px solid #1e2030; border-radius: 12px; padding: 16px; margin-bottom: 24px; }
+    .perf-chart-labels { display: flex; justify-content: space-between; margin-top: 8px; font-size: 10px; color: #555; font-family: 'JetBrains Mono', monospace; }
+    .perf-chart-ylabels { position: absolute; top: 16px; left: 8px; bottom: 36px; display: flex; flex-direction: column; justify-content: space-between; }
+    .perf-chart-ylabel { font-size: 9px; color: #444; font-family: 'JetBrains Mono', monospace; }
+    .perf-time-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+    .perf-time-tab { background: #1a1d27; border: 1px solid #2a2d3a; border-radius: 8px; padding: 6px 14px; font-size: 11px; font-weight: 700; color: #666; cursor: pointer; transition: all 0.2s; font-family: 'Inter', sans-serif; }
+    .perf-time-tab.active { background: #8247e5; border-color: #8247e5; color: #fff; }
+    .perf-time-tab:hover:not(.active) { border-color: #8247e5; color: #a78bfa; }
+    .metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .metric-card { background: #0a0b0f; border: 1px solid #1e2030; border-radius: 12px; padding: 18px; }
+    .metric-label { font-size: 10px; font-weight: 700; color: #555; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; }
+    .metric-value { font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 800; color: #fff; }
+    .metric-value.green { color: #22c55e; }
+    .metric-value.red { color: #ef4444; }
+    .metric-value.blue { color: #3b82f6; }
+    .metric-value.purple { color: #a78bfa; }
+    .metric-sub { font-size: 11px; color: #444; margin-top: 4px; font-weight: 500; }
+    .metric-bar { height: 4px; border-radius: 2px; background: #1e2030; margin-top: 10px; overflow: hidden; }
+    .metric-bar-fill { height: 100%; border-radius: 2px; }
+    .returns-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 12px; }
+    .return-card { background: #0a0b0f; border: 1px solid #1e2030; border-radius: 12px; padding: 16px; text-align: center; }
+    .return-period { font-size: 10px; font-weight: 700; color: #555; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; }
+    .return-value { font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: 800; }
+    .return-value.pos { color: #22c55e; }
+    .return-value.neg { color: #ef4444; }
+    @media (max-width: 768px) {
+        .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+        .returns-row { grid-template-columns: 1fr; }
+        .perf-section { padding-left: 16px; padding-right: 16px; }
+    }
+
     </style>
 </head>
 <body>
@@ -220,6 +256,117 @@
                 <div class="health-icon pass">&#10003;</div>
                 <div class="health-label">Trade Execution</div>
                 <div class="health-status pass">Executing</div>
+            </div>
+        </div>
+    </section>
+
+    
+    <section class="perf-section">
+        <div class="perf-card">
+            <div class="perf-card-title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1a73e8" stroke-width="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                Portfolio Performance
+            </div>
+
+            <div class="perf-time-tabs">
+                <div class="perf-time-tab">7D</div>
+                <div class="perf-time-tab">30D</div>
+                <div class="perf-time-tab active">90D</div>
+                <div class="perf-time-tab">ALL</div>
+            </div>
+
+            <div class="perf-chart-wrap">
+                <svg viewBox="0 0 720 220" width="100%" height="220" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="chartGrad-PPLX" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stop-color="#1a73e8" stop-opacity="0.3"/>
+                            <stop offset="100%" stop-color="#1a73e8" stop-opacity="0.02"/>
+                        </linearGradient>
+                    </defs>
+                    <!-- Grid lines -->
+                    <line x1="40" y1="40" x2="680" y2="40" stroke="#1e2030" stroke-width="0.5"/>
+                    <line x1="40" y1="100" x2="680" y2="100" stroke="#1e2030" stroke-width="0.5"/>
+                    <line x1="40" y1="160" x2="680" y2="160" stroke="#1e2030" stroke-width="0.5"/>
+                    <!-- Y-axis labels -->
+                    <text x="36" y="44" text-anchor="end" font-size="9" fill="#444" font-family="JetBrains Mono, monospace">$11,678</text>
+                    <text x="36" y="104" text-anchor="end" font-size="9" fill="#444" font-family="JetBrains Mono, monospace">$10,839</text>
+                    <text x="36" y="164" text-anchor="end" font-size="9" fill="#444" font-family="JetBrains Mono, monospace">$10,000</text>
+                    <!-- Fill area -->
+                    <polygon points="40.0,160.0 46.7,146.7 53.5,137.5 60.2,130.3 67.0,120.9 73.7,113.9 80.4,120.8 87.2,121.1 93.9,114.2 100.7,115.4 107.4,129.4 114.2,131.7 120.9,136.5 127.6,139.6 134.4,134.2 141.1,133.9 147.9,138.5 154.6,145.1 161.3,145.4 168.1,145.0 174.8,144.8 181.6,142.2 188.3,131.6 195.1,140.3 201.8,143.6 208.5,138.1 215.3,135.2 222.0,143.4 228.8,142.1 235.5,137.2 242.2,126.2 249.0,129.0 255.7,124.7 262.5,121.8 269.2,122.8 276.0,116.5 282.7,117.1 289.4,118.2 296.2,113.5 302.9,123.4 309.7,119.6 316.4,116.6 323.1,107.5 329.9,110.7 336.6,107.3 343.4,99.2 350.1,90.6 356.9,95.0 363.6,89.9 370.3,90.6 377.1,90.8 383.8,83.8 390.6,94.3 397.3,93.0 404.0,79.9 410.8,79.9 417.5,83.4 424.3,82.1 431.0,77.8 437.8,82.2 444.5,77.0 451.2,82.6 458.0,80.4 464.7,81.9 471.5,81.2 478.2,78.3 484.9,68.6 491.7,70.9 498.4,68.5 505.2,69.9 511.9,50.6 518.7,45.7 525.4,54.1 532.1,56.7 538.9,49.6 545.6,50.3 552.4,56.7 559.1,56.1 565.8,55.8 572.6,55.2 579.3,57.7 586.1,59.8 592.8,51.1 599.6,43.0 606.3,43.4 613.0,44.4 619.8,46.4 626.5,40.0 633.3,40.2 640.0,48.2 680,180 60,180" fill="url(#chartGrad-PPLX)" />
+                    <!-- Line -->
+                    <polyline points="40.0,160.0 46.7,146.7 53.5,137.5 60.2,130.3 67.0,120.9 73.7,113.9 80.4,120.8 87.2,121.1 93.9,114.2 100.7,115.4 107.4,129.4 114.2,131.7 120.9,136.5 127.6,139.6 134.4,134.2 141.1,133.9 147.9,138.5 154.6,145.1 161.3,145.4 168.1,145.0 174.8,144.8 181.6,142.2 188.3,131.6 195.1,140.3 201.8,143.6 208.5,138.1 215.3,135.2 222.0,143.4 228.8,142.1 235.5,137.2 242.2,126.2 249.0,129.0 255.7,124.7 262.5,121.8 269.2,122.8 276.0,116.5 282.7,117.1 289.4,118.2 296.2,113.5 302.9,123.4 309.7,119.6 316.4,116.6 323.1,107.5 329.9,110.7 336.6,107.3 343.4,99.2 350.1,90.6 356.9,95.0 363.6,89.9 370.3,90.6 377.1,90.8 383.8,83.8 390.6,94.3 397.3,93.0 404.0,79.9 410.8,79.9 417.5,83.4 424.3,82.1 431.0,77.8 437.8,82.2 444.5,77.0 451.2,82.6 458.0,80.4 464.7,81.9 471.5,81.2 478.2,78.3 484.9,68.6 491.7,70.9 498.4,68.5 505.2,69.9 511.9,50.6 518.7,45.7 525.4,54.1 532.1,56.7 538.9,49.6 545.6,50.3 552.4,56.7 559.1,56.1 565.8,55.8 572.6,55.2 579.3,57.7 586.1,59.8 592.8,51.1 599.6,43.0 606.3,43.4 613.0,44.4 619.8,46.4 626.5,40.0 633.3,40.2 640.0,48.2" fill="none" stroke="#1a73e8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <!-- End dot -->
+                    <circle cx="640.0" cy="48.2" r="4" fill="#1a73e8" stroke="#0a0b0f" stroke-width="2"/>
+                </svg>
+                <div class="perf-chart-labels">
+                    <span>90 days ago</span>
+                    <span>60 days ago</span>
+                    <span>30 days ago</span>
+                    <span>Today</span>
+                </div>
+            </div>
+
+            <!-- Period Returns -->
+            <div class="returns-row">
+                <div class="return-card">
+                    <div class="return-period">Last 7 Days</div>
+                    <div class="return-value pos">+3.2%</div>
+                </div>
+                <div class="return-card">
+                    <div class="return-period">Last 30 Days</div>
+                    <div class="return-value pos">+7.8%</div>
+                </div>
+                <div class="return-card">
+                    <div class="return-period">Last 90 Days</div>
+                    <div class="return-value pos">+15.1%</div>
+                </div>
+            </div>
+
+            <!-- Detailed Metrics Grid -->
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-label">Cumulative Return</div>
+                    <div class="metric-value green">+18.5%</div>
+                    <div class="metric-sub">Since inception</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Volatility</div>
+                    <div class="metric-value blue">14.7%</div>
+                    <div class="metric-sub">Annualized</div>
+                    <div class="metric-bar"><div class="metric-bar-fill" style="width:49%;background:#3b82f6;"></div></div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Max Drawdown</div>
+                    <div class="metric-value red">-5.8%</div>
+                    <div class="metric-sub">Peak to trough</div>
+                    <div class="metric-bar"><div class="metric-bar-fill" style="width:29%;background:#ef4444;"></div></div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Sharpe Ratio</div>
+                    <div class="metric-value green">1.87</div>
+                    <div class="metric-sub">Risk-adjusted return</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Win Rate</div>
+                    <div class="metric-value green">64.7%</div>
+                    <div class="metric-sub">Profitable trades</div>
+                    <div class="metric-bar"><div class="metric-bar-fill" style="width:65%;background:#22c55e;"></div></div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Avg Holding Time</div>
+                    <div class="metric-value purple">6.1h</div>
+                    <div class="metric-sub">Per position</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Total Trades</div>
+                    <div class="metric-value">983</div>
+                    <div class="metric-sub">Executed</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Profit Factor</div>
+                    <div class="metric-value green">1.83</div>
+                    <div class="metric-sub">Win/loss ratio</div>
+                </div>
             </div>
         </div>
     </section>
