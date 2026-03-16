@@ -389,11 +389,13 @@ def run_cycle(db: Session, arena_id: int):
     # discarding earlier successful trades when a later symbol fails
     pending_trades = []
     pending_error_logs = []
+    symbol_prices = {}  # Track latest prices for all symbols to update portfolio current_price
 
     for symbol in tickers:
         symbol = symbol.strip()
         try:
             market_data = stock_service.get_realtime_data(symbol)
+            symbol_prices[symbol] = market_data["price"]
             decision = orchestrator.run_trading_cycle(market_data, arena_id)
 
             if decision == "BUY":
@@ -447,6 +449,21 @@ def run_cycle(db: Session, arena_id: int):
         except Exception as e:
             db.rollback()
             print(f"Portfolio update error for {trade.symbol} in Arena {arena_id}: {e}")
+
+    # Update current_price for ALL portfolio positions (not just traded ones)
+    # so unrealized P&L reflects latest market prices even on HOLD decisions
+    try:
+        for sym, price in symbol_prices.items():
+            pos = db.query(models.Portfolio).filter(
+                models.Portfolio.arena_id == arena_id,
+                models.Portfolio.symbol == sym
+            ).first()
+            if pos is not None:
+                pos.current_price = price
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        print(f"Portfolio price refresh error for Arena {arena_id}: {e}")
 
     # Run monitoring and self-improvement
     try:
