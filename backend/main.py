@@ -396,7 +396,7 @@ def run_cycle(db: Session, arena_id: int):
             market_data = stock_service.get_realtime_data(symbol)
             decision = orchestrator.run_trading_cycle(market_data, arena_id)
 
-            if decision in ["BUY", "SELL"]:
+            if decision == "BUY":
                 pending_trades.append(models.Trade(
                     arena_id=arena_id,
                     symbol=symbol,
@@ -404,6 +404,22 @@ def run_cycle(db: Session, arena_id: int):
                     price=market_data["price"],
                     amount=10.0
                 ))
+            elif decision == "SELL":
+                # Check portfolio position before creating SELL trade
+                # to avoid phantom sell records when no shares are held
+                pos = db.query(models.Portfolio).filter(
+                    models.Portfolio.arena_id == arena_id,
+                    models.Portfolio.symbol == symbol
+                ).first()
+                sell_qty = min(10.0, pos.quantity) if pos and pos.quantity > 0 else 0
+                if sell_qty > 0:
+                    pending_trades.append(models.Trade(
+                        arena_id=arena_id,
+                        symbol=symbol,
+                        side=decision,
+                        price=market_data["price"],
+                        amount=sell_qty
+                    ))
         except Exception as e:
             # Rollback to clear any failed session state (e.g. from orchestrator's
             # internal db.commit() failure). Safe because pending_trades is a Python
@@ -426,7 +442,11 @@ def run_cycle(db: Session, arena_id: int):
 
     # Update portfolio positions based on executed trades
     for trade in pending_trades:
-        _update_portfolio(db, trade)
+        try:
+            _update_portfolio(db, trade)
+        except Exception as e:
+            db.rollback()
+            print(f"Portfolio update error for {trade.symbol} in Arena {arena_id}: {e}")
 
     # Run monitoring and self-improvement
     try:
