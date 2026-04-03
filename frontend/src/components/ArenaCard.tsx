@@ -54,12 +54,12 @@ const ArenaCard: React.FC<ArenaCardProps> = ({ arena, onSelect }) => {
     <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col h-full">
       <div className="mb-4">
         <div className="flex items-center space-x-2 mb-2">
-           <span className="bg-purple-100 text-purple-700 text-[10px] font-bold px-2 py-0.5 rounded uppercase">New</span>
+           <span className="bg-orange-100 text-orange-700 text-[10px] font-bold px-2 py-0.5 rounded uppercase">New</span>
            <h3 className="text-xl font-bold text-gray-900">{arena.name}</h3>
         </div>
         <div className="flex flex-wrap gap-2 mb-4">
           {tags.map((tag, i) => (
-            <span key={i} className="text-sm font-medium text-purple-600">{tag}</span>
+            <span key={i} className="text-sm font-medium text-orange-600">{tag}</span>
           ))}
         </div>
       </div>
@@ -102,7 +102,7 @@ const ArenaCard: React.FC<ArenaCardProps> = ({ arena, onSelect }) => {
                 <td className="py-1.5 px-1 text-right font-medium text-blue-500">{model.volatility}</td>
                 <td className="py-1.5 px-1 text-right font-medium text-red-400">{model.maxDrawdown}</td>
                 <td className={`py-1.5 px-1 text-right font-bold ${parseFloat(model.winRate) >= 55 ? 'text-green-600' : 'text-red-500'}`}>{model.winRate}</td>
-                <td className="py-1.5 px-1 text-right font-medium text-purple-500">{model.avgHold}</td>
+                <td className="py-1.5 px-1 text-right font-medium text-orange-500">{model.avgHold}</td>
               </tr>
             ))}
           </tbody>
@@ -119,7 +119,7 @@ const ArenaCard: React.FC<ArenaCardProps> = ({ arena, onSelect }) => {
         </div>
         <button
           onClick={() => onSelect(arena.id)}
-          className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded-full text-sm flex items-center transition-colors"
+          className="bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-6 rounded-full text-sm flex items-center transition-colors"
         >
           Copy Trade <span className="ml-2">→</span>
         </button>

@@ -78,14 +78,14 @@ function App() {
       {/* Top Nav */}
       <nav className="flex items-center justify-between px-8 py-4 border-b border-gray-100 sticky top-0 bg-white z-50">
         <div className="flex items-center space-x-2 cursor-pointer" onClick={handleBackToHome}>
-          <div className="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center text-white font-bold">R</div>
-          <span className="text-xl font-bold tracking-tight text-purple-900">ROCKFLOW <span className="text-purple-600 font-normal ml-2">RockAlpha</span></span>
+          <div className="w-8 h-8 bg-orange-600 rounded-lg flex items-center justify-center text-white font-bold">L</div>
+          <span className="text-xl font-bold tracking-tight text-orange-900">Lawliet <span className="text-orange-600 font-normal ml-2">Studios</span></span>
         </div>
         <div className="flex items-center space-x-6 text-sm font-medium text-gray-500">
           <span className="flex items-center cursor-pointer"> <Globe className="w-4 h-4 mr-1" /> EN ▾</span>
-          <span className="cursor-pointer hover:text-purple-600">About ROCKFLOW ↗</span>
-          <span className="cursor-pointer hover:text-purple-600">About RockAlpha ↗</span>
-          <button className="bg-purple-600 text-white px-6 py-2 rounded-full font-bold flex items-center shadow-lg shadow-purple-100 transition-all hover:bg-purple-700">
+          <span className="cursor-pointer hover:text-orange-600">About Lawliet ↗</span>
+          <span className="cursor-pointer hover:text-orange-600">About Studios ↗</span>
+          <button className="bg-orange-600 text-white px-6 py-2 rounded-full font-bold flex items-center shadow-lg shadow-orange-100 transition-all hover:bg-orange-700">
             Share <Share2 className="w-4 h-4 ml-2" />
           </button>
         </div>
@@ -97,12 +97,12 @@ function App() {
 
           <div className="flex items-center justify-between mb-12">
             <div>
-                <h2 className="text-6xl font-black text-purple-700 mb-4">All Arenas</h2>
+                <h2 className="text-6xl font-black text-orange-700 mb-4">All Arenas</h2>
                 <p className="text-xl text-gray-500 font-medium">Browse live AI tradings by theme & strategy. Jump in and copy-trade whoever's winning.</p>
             </div>
             <div className="flex flex-col items-end">
-                 <div className="bg-purple-50 text-purple-600 px-4 py-2 rounded-full text-xs font-bold mb-4 flex items-center border border-purple-100">
-                    <span className="w-2 h-2 bg-purple-600 rounded-full mr-2 animate-pulse"></span>
+                 <div className="bg-orange-50 text-orange-600 px-4 py-2 rounded-full text-xs font-bold mb-4 flex items-center border border-orange-100">
+                    <span className="w-2 h-2 bg-orange-600 rounded-full mr-2 animate-pulse"></span>
                     44h til Market Open
                 </div>
                 <ArenaForm onCreated={fetchArenas} />
@@ -121,7 +121,7 @@ function App() {
           <aside className="w-64 border-r border-gray-100 p-6 flex flex-col space-y-8 overflow-y-auto">
             <button
               onClick={handleBackToHome}
-              className="text-gray-500 font-bold flex items-center text-sm hover:text-purple-600 transition-colors"
+              className="text-gray-500 font-bold flex items-center text-sm hover:text-orange-600 transition-colors"
             >
               <ChevronLeft className="w-4 h-4 mr-1" /> Back to Trading Hub
             </button>
@@ -129,13 +129,13 @@ function App() {
             {selectedArena && (
               <div className="space-y-6">
                 <div>
-                  <h1 className="text-3xl font-black text-purple-700 leading-tight mb-2">{selectedArena.name}</h1>
+                  <h1 className="text-3xl font-black text-orange-700 leading-tight mb-2">{selectedArena.name}</h1>
                   <Info className="w-4 h-4 text-gray-300 cursor-pointer" />
                 </div>
 
                 <div className="space-y-4">
                   <div className="flex items-start space-x-3">
-                    <Target className="w-5 h-5 text-purple-600 mt-1 shrink-0" />
+                    <Target className="w-5 h-5 text-orange-600 mt-1 shrink-0" />
                     <div>
                       <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 flex items-center">Tickers <Info className="w-3 h-3 ml-1" /></p>
                       <p className="text-sm font-bold text-gray-700">{selectedArena.tickers}</p>
@@ -143,7 +143,7 @@ function App() {
                   </div>
 
                   <div className="flex items-start space-x-3">
-                    <FileText className="w-5 h-5 text-purple-600 mt-1 shrink-0" />
+                    <FileText className="w-5 h-5 text-orange-600 mt-1 shrink-0" />
                     <div>
                       <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 flex items-center">Rule <Info className="w-3 h-3 ml-1" /></p>
                       <p className="text-sm font-bold text-gray-700">{selectedArena.rule || "Live Trading Cup"}</p>
@@ -151,7 +151,7 @@ function App() {
                   </div>
 
                   <div className="flex items-start space-x-3">
-                    <Send className="w-5 h-5 text-purple-600 mt-1 shrink-0" />
+                    <Send className="w-5 h-5 text-orange-600 mt-1 shrink-0" />
                     <div>
                       <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 flex items-center">Prompt <Info className="w-3 h-3 ml-1" /></p>
                       <p className="text-sm font-bold text-gray-700 line-clamp-3">{selectedArena.prompt_text || "Autonomous strategies based on market momentum."}</p>
@@ -182,10 +182,10 @@ function App() {
                           </div>
                         </div>
                         <div className="flex items-center space-x-2">
-                          <button className="bg-purple-50 text-purple-600 px-4 py-2 rounded-full text-xs font-bold border border-purple-100 flex items-center">
+                          <button className="bg-orange-50 text-orange-600 px-4 py-2 rounded-full text-xs font-bold border border-orange-100 flex items-center">
                             Vote Win <span className="ml-1">🏆</span>
                           </button>
-                          <button className="bg-purple-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg shadow-purple-100">
+                          <button className="bg-orange-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg shadow-orange-100">
                             Copy Trading →
                           </button>
                         </div>
@@ -205,17 +205,17 @@ function App() {
                 {/* Chart Section */}
                 <div className="col-span-12 lg:col-span-8 bg-white rounded-3xl border border-gray-100 p-8 shadow-sm min-h-[400px]">
                   <div className="flex items-center justify-between mb-8">
-                    <h3 className="text-xs font-black text-purple-700 uppercase tracking-widest flex items-center">
-                      <span className="w-2 h-2 bg-purple-600 rounded-full mr-2"></span>
+                    <h3 className="text-xs font-black text-orange-700 uppercase tracking-widest flex items-center">
+                      <span className="w-2 h-2 bg-orange-600 rounded-full mr-2"></span>
                       Total Account Value
                     </h3>
-                    <div className="text-xs font-bold text-purple-600">Status: US Market Closed</div>
+                    <div className="text-xs font-bold text-orange-600">Status: US Market Closed</div>
                   </div>
 
                   {/* Mock Chart */}
                   <div className="relative h-64 w-full flex items-end space-x-1">
                     {[40, 45, 42, 48, 55, 52, 58, 65, 62, 70, 68, 75, 80, 78, 85, 90, 88, 95, 100, 98, 105, 110, 108, 115].map((h, i) => (
-                      <div key={i} className="flex-1 bg-purple-100 rounded-t-sm transition-all hover:bg-purple-300" style={{ height: `${h}%` }}></div>
+                      <div key={i} className="flex-1 bg-orange-100 rounded-t-sm transition-all hover:bg-orange-300" style={{ height: `${h}%` }}></div>
                     ))}
                     <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
                       {[12000, 11000, 10000, 9000, 8000].map(val => (
@@ -235,16 +235,16 @@ function App() {
 
                 {/* More Arenas Like This */}
                 <div className="col-span-12 lg:col-span-4 flex flex-col space-y-4">
-                  <h3 className="font-black text-purple-700 text-sm">More Arenas Like This...</h3>
+                  <h3 className="font-black text-orange-700 text-sm">More Arenas Like This...</h3>
                   {arenas.filter(a => a.id !== selectedArenaId).slice(0, 2).map(arena => (
-                    <div key={arena.id} className="p-4 bg-white border border-gray-100 rounded-2xl hover:border-purple-200 cursor-pointer transition-all shadow-sm" onClick={() => handleSelectArena(arena.id)}>
+                    <div key={arena.id} className="p-4 bg-white border border-gray-100 rounded-2xl hover:border-orange-200 cursor-pointer transition-all shadow-sm" onClick={() => handleSelectArena(arena.id)}>
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-xs font-black text-gray-900">{arena.name}</span>
                         <ChevronLeft className="w-4 h-4 text-gray-300 rotate-180" />
                       </div>
                       <div className="flex gap-2">
                         {arena.tags.split(',').slice(0, 2).map((tag: string, i: number) => (
-                          <span key={i} className="text-[10px] bg-purple-50 text-purple-600 px-2 py-0.5 rounded-full font-bold">{tag.replace('#', '')}</span>
+                          <span key={i} className="text-[10px] bg-orange-50 text-orange-600 px-2 py-0.5 rounded-full font-bold">{tag.replace('#', '')}</span>
                         ))}
                       </div>
                     </div>

@@ -20,13 +20,13 @@ const TradeList = ({ trades, portfolio }: { trades: any[]; portfolio: any }) => 
       <div className="flex border-b border-gray-100">
         <button
           onClick={() => setActiveTab('Portfolio')}
-          className={`flex-1 py-4 text-xs font-black uppercase tracking-widest transition-colors ${activeTab === 'Portfolio' ? 'text-purple-600 border-b-2 border-purple-600' : 'text-gray-400 hover:text-gray-600'}`}
+          className={`flex-1 py-4 text-xs font-black uppercase tracking-widest transition-colors ${activeTab === 'Portfolio' ? 'text-orange-600 border-b-2 border-orange-600' : 'text-gray-400 hover:text-gray-600'}`}
         >
           Portfolio
         </button>
         <button
           onClick={() => setActiveTab('Orders')}
-          className={`flex-1 py-4 text-xs font-black uppercase tracking-widest transition-colors ${activeTab === 'Orders' ? 'text-purple-600 border-b-2 border-purple-600' : 'text-gray-400 hover:text-gray-600'}`}
+          className={`flex-1 py-4 text-xs font-black uppercase tracking-widest transition-colors ${activeTab === 'Orders' ? 'text-orange-600 border-b-2 border-orange-600' : 'text-gray-400 hover:text-gray-600'}`}
         >
           Orders
         </button>
@@ -35,8 +35,8 @@ const TradeList = ({ trades, portfolio }: { trades: any[]; portfolio: any }) => 
       <div className="flex-1 overflow-y-auto p-6">
         {activeTab === 'Portfolio' ? (
           <div className="space-y-6">
-            <div className="flex items-center space-x-2 text-purple-600">
-               <div className="w-5 h-5 bg-purple-600 rounded-full flex items-center justify-center text-white">
+            <div className="flex items-center space-x-2 text-orange-600">
+               <div className="w-5 h-5 bg-orange-600 rounded-full flex items-center justify-center text-white">
                  <PieChart className="w-3 h-3" />
                </div>
                <span className="text-xs font-black">Live Portfolio</span>
