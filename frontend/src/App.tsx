@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { ChevronLeft, Info, Target, FileText, Send, Share2, Globe, TrendingUp, Cpu, PieChart } from 'lucide-react';
+import { ChevronLeft, Info, Target, FileText, Send, Share2, Globe } from 'lucide-react';
 import TradeList from './components/TradeList';
 import AILogs from './components/AILogs';
 import ArenaCard from './components/ArenaCard';
@@ -12,14 +12,14 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 function App() {
   const [arenas, setArenas] = useState<any[]>([]);
   const [selectedArenaId, setSelectedArenaId] = useState<number | null>(null);
-  const [trades, setTrades] = useState([]);
-  const [aiLogs, setAiLogs] = useState([]);
+  const [trades, setTrades] = useState<any[]>([]);
+  const [aiLogs, setAiLogs] = useState<any[]>([]);
   const [view, setView] = useState<'home' | 'detail'>('home');
 
   const fetchArenas = async () => {
     try {
       const res = await axios.get(`${API_BASE_URL}/arenas`);
-      setArenas(res.data);
+      setArenas(Array.isArray(res.data) ? res.data : []);
     } catch (error) {
       console.error('Error fetching arenas:', error);
     }
@@ -32,8 +32,8 @@ function App() {
         axios.get(`${API_BASE_URL}/trades?arena_id=${selectedArenaId}`),
         axios.get(`${API_BASE_URL}/ai-responses?arena_id=${selectedArenaId}`)
       ]);
-      setTrades(tradesRes.data);
-      setAiLogs(aiLogsRes.data);
+      setTrades(Array.isArray(tradesRes.data) ? tradesRes.data : []);
+      setAiLogs(Array.isArray(aiLogsRes.data) ? aiLogsRes.data : []);
     } catch (error) {
       console.error('Error fetching trades/logs:', error);
     }
@@ -240,7 +240,7 @@ function App() {
                         <ChevronLeft className="w-4 h-4 text-gray-300 rotate-180" />
                       </div>
                       <div className="flex gap-2">
-                        {arena.tags.split(',').slice(0, 2).map((tag: string, i: number) => (
+                        {(arena.tags || '').split(',').slice(0, 2).map((tag: string, i: number) => (
                           <span key={i} className="text-[10px] bg-purple-50 text-purple-600 px-2 py-0.5 rounded-full font-bold">{tag.replace('#', '')}</span>
                         ))}
                       </div>

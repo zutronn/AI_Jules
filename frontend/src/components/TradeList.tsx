@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { ChevronLeft, ChevronRight, PieChart, List } from 'lucide-react';
 
 const TradeList = ({ trades }: { trades: any[] }) => {
