@@ -18,14 +18,14 @@ interface ArenaCardProps {
   arena: {
     id: number;
     name: string;
-    tags: string;
+    tags: string | string[];
     description: string;
   };
   onSelect: (id: number) => void;
 }
 
 const ArenaCard: React.FC<ArenaCardProps> = ({ arena, onSelect }) => {
-  const tags = (arena.tags || '').split(',').filter(t => t.trim() !== '');
+  const tags = Array.isArray(arena.tags) ? arena.tags : (arena.tags || '').split(',').filter(t => t.trim() !== '');
 
   // Mock model performance with full metrics for the card view
   const models: ModelData[] = [

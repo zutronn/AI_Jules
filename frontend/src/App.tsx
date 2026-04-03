@@ -254,7 +254,7 @@ function App() {
                         <ChevronLeft className="w-4 h-4 text-gray-300 rotate-180" />
                       </div>
                       <div className="flex gap-2">
-                        {(arena.tags || '').split(',').slice(0, 2).map((tag: string, i: number) => (
+                        {(Array.isArray(arena.tags) ? arena.tags : (arena.tags || '').split(',')).slice(0, 2).map((tag: string, i: number) => (
                           <span key={i} className="text-[10px] bg-orange-50 text-orange-600 px-2 py-0.5 rounded-full font-bold">{tag.replace('#', '')}</span>
                         ))}
                       </div>
