@@ -42,14 +42,16 @@ class Orchestrator:
 
         self.db.commit()
 
-        # Simple orchestration logic: consensus
+        # Orchestration logic: simple plurality wins
+        # Any side with more votes than the other wins (minimum 1 vote needed).
+        # Ties go to HOLD.
         buy_votes = sum(1 for r in agent_responses if "BUY" in r["response"])
         sell_votes = sum(1 for r in agent_responses if "SELL" in r["response"])
 
         decision = "HOLD"
-        if buy_votes > sell_votes and buy_votes >= 2:
+        if buy_votes > sell_votes:
             decision = "BUY"
-        elif sell_votes > buy_votes and sell_votes >= 2:
+        elif sell_votes > buy_votes:
             decision = "SELL"
 
         # Log the decision

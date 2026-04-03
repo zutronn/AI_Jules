@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { ChevronLeft, Info, Target, FileText, Send, Share2, Globe, TrendingUp, Cpu, PieChart } from 'lucide-react';
+import { ChevronLeft, Info, Target, FileText, Send, Share2, Globe } from 'lucide-react';
 import TradeList from './components/TradeList';
 import AILogs from './components/AILogs';
 import ArenaCard from './components/ArenaCard';
@@ -14,6 +14,7 @@ function App() {
   const [selectedArenaId, setSelectedArenaId] = useState<number | null>(null);
   const [trades, setTrades] = useState([]);
   const [aiLogs, setAiLogs] = useState([]);
+  const [portfolio, setPortfolio] = useState<any>(null);
   const [view, setView] = useState<'home' | 'detail'>('home');
 
   const fetchArenas = async () => {
@@ -28,12 +29,14 @@ function App() {
   const fetchData = async () => {
     if (selectedArenaId === null) return;
     try {
-      const [tradesRes, aiLogsRes] = await Promise.all([
+      const [tradesRes, aiLogsRes, portfolioRes] = await Promise.all([
         axios.get(`${API_BASE_URL}/trades?arena_id=${selectedArenaId}`),
-        axios.get(`${API_BASE_URL}/ai-responses?arena_id=${selectedArenaId}`)
+        axios.get(`${API_BASE_URL}/ai-responses?arena_id=${selectedArenaId}`),
+        axios.get(`${API_BASE_URL}/portfolio?arena_id=${selectedArenaId}`)
       ]);
       setTrades(tradesRes.data);
       setAiLogs(aiLogsRes.data);
+      setPortfolio(portfolioRes.data);
     } catch (error) {
       console.error('Error fetching trades/logs:', error);
     }
@@ -253,7 +256,7 @@ function App() {
 
           {/* Right Sidebar: Portfolio & Orders */}
           <aside className="w-80 border-l border-gray-100 flex flex-col h-full bg-white">
-            <TradeList trades={trades} />
+            <TradeList trades={trades} portfolio={portfolio} />
           </aside>
         </div>
       )}
