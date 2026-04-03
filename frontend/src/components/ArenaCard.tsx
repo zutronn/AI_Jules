@@ -25,7 +25,7 @@ interface ArenaCardProps {
 }
 
 const ArenaCard: React.FC<ArenaCardProps> = ({ arena, onSelect }) => {
-  const tags = arena.tags.split(',').filter(t => t.trim() !== '');
+  const tags = (arena.tags || '').split(',').filter(t => t.trim() !== '');
 
   // Mock model performance with full metrics for the card view
   const models: ModelData[] = [

@@ -12,17 +12,23 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 function App() {
   const [arenas, setArenas] = useState<any[]>([]);
   const [selectedArenaId, setSelectedArenaId] = useState<number | null>(null);
-  const [trades, setTrades] = useState([]);
-  const [aiLogs, setAiLogs] = useState([]);
+  const [trades, setTrades] = useState<any[]>([]);
+  const [aiLogs, setAiLogs] = useState<any[]>([]);
   const [portfolio, setPortfolio] = useState<any>(null);
   const [view, setView] = useState<'home' | 'detail'>('home');
 
   const fetchArenas = async () => {
     try {
       const res = await axios.get(`${API_BASE_URL}/arenas`);
-      setArenas(res.data);
+      if (Array.isArray(res.data)) {
+        setArenas(res.data);
+      } else {
+        console.warn('Arenas response is not an array:', typeof res.data);
+        setArenas([]);
+      }
     } catch (error) {
       console.error('Error fetching arenas:', error);
+      setArenas([]);
     }
   };
 
@@ -34,9 +40,9 @@ function App() {
         axios.get(`${API_BASE_URL}/ai-responses?arena_id=${selectedArenaId}`),
         axios.get(`${API_BASE_URL}/portfolio?arena_id=${selectedArenaId}`)
       ]);
-      setTrades(tradesRes.data);
-      setAiLogs(aiLogsRes.data);
-      setPortfolio(portfolioRes.data);
+      setTrades(Array.isArray(tradesRes.data) ? tradesRes.data : []);
+      setAiLogs(Array.isArray(aiLogsRes.data) ? aiLogsRes.data : []);
+      setPortfolio(portfolioRes.data || null);
     } catch (error) {
       console.error('Error fetching trades/logs:', error);
     }
@@ -64,7 +70,7 @@ function App() {
     setSelectedArenaId(null);
   };
 
-  const selectedArena = arenas.find(a => a.id === selectedArenaId);
+  const selectedArena = Array.isArray(arenas) ? arenas.find(a => a.id === selectedArenaId) : undefined;
 
   const mockModels = [
     { name: "DeepSeek V3.1", roi: "+6.50%", color: "bg-blue-500" },
@@ -110,9 +116,14 @@ function App() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-            {arenas.map(arena => (
+            {Array.isArray(arenas) && arenas.length > 0 ? arenas.map(arena => (
               <ArenaCard key={arena.id} arena={arena} onSelect={handleSelectArena} />
-            ))}
+            )) : (
+              <div className="col-span-2 text-center py-20 text-gray-400">
+                <p className="text-lg font-bold">Connecting to trading backend...</p>
+                <p className="text-sm mt-2">Arenas will appear once the backend is available.</p>
+              </div>
+            )}
           </div>
         </main>
       ) : (
@@ -243,7 +254,7 @@ function App() {
                         <ChevronLeft className="w-4 h-4 text-gray-300 rotate-180" />
                       </div>
                       <div className="flex gap-2">
-                        {arena.tags.split(',').slice(0, 2).map((tag: string, i: number) => (
+                        {(arena.tags || '').split(',').slice(0, 2).map((tag: string, i: number) => (
                           <span key={i} className="text-[10px] bg-orange-50 text-orange-600 px-2 py-0.5 rounded-full font-bold">{tag.replace('#', '')}</span>
                         ))}
                       </div>
