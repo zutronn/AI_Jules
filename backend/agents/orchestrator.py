@@ -1,6 +1,6 @@
 from typing import Dict, Any, List
 from sqlalchemy.orm import Session
-from .mocks import (
+from agents.mocks import (
     TrendFollowerAgent,
     SentimentAnalyzerAgent,
     VolatilityScoutAgent,
@@ -8,7 +8,7 @@ from .mocks import (
     RiskEvaluatorAgent,
     TechnicalAnalystAgent
 )
-from .. import models, schemas
+import models, schemas
 
 class Orchestrator:
     def __init__(self, db: Session):
