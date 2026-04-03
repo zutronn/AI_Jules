@@ -16,6 +16,7 @@ function App() {
   const [aiLogs, setAiLogs] = useState<any[]>([]);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [portfolioHistory, setPortfolioHistory] = useState<any[]>([]);
+  const [portfolio, setPortfolio] = useState<any>(null);
   const [view, setView] = useState<'home' | 'detail'>('home');
   const [aiStatus, setAiStatus] = useState<any>(null);
 
@@ -46,16 +47,45 @@ function App() {
   const fetchDetailData = async () => {
     if (selectedArenaId === null) return;
     try {
-      const [tradesRes, logsRes, leaderboardRes, historyRes] = await Promise.all([
+      const [tradesRes, logsRes, leaderboardRes, historyRes, portfolioAllRes] = await Promise.all([
         axios.get(`${API_BASE_URL}/trades/${selectedArenaId}`).catch(() => ({ data: [] })),
         axios.get(`${API_BASE_URL}/agents/logs/${selectedArenaId}`).catch(() => ({ data: [] })),
         axios.get(`${API_BASE_URL}/arenas/${selectedArenaId}/leaderboard`).catch(() => ({ data: [] })),
         axios.get(`${API_BASE_URL}/portfolio/history/${selectedArenaId}`).catch(() => ({ data: [] })),
+        axios.get(`${API_BASE_URL}/portfolio/all/${selectedArenaId}`).catch(() => ({ data: [] })),
       ]);
       setTrades(Array.isArray(tradesRes.data) ? tradesRes.data : []);
       setAiLogs(Array.isArray(logsRes.data) ? logsRes.data : []);
       setLeaderboard(Array.isArray(leaderboardRes.data) ? leaderboardRes.data : []);
       setPortfolioHistory(Array.isArray(historyRes.data) ? historyRes.data : []);
+
+      // Aggregate portfolio data from all agents for the TradeList sidebar
+      const allPortfolios = Array.isArray(portfolioAllRes.data) ? portfolioAllRes.data : [];
+      if (allPortfolios.length > 0) {
+        const allPositions: any[] = [];
+        let totalAssets = 0;
+        let totalPnl = 0;
+        for (const agentPortfolio of allPortfolios) {
+          totalAssets += agentPortfolio.total_value || 0;
+          totalPnl += (agentPortfolio.total_value || 0) - 100000; // return vs initial $100k
+          for (const h of (agentPortfolio.holdings || [])) {
+            const existing = allPositions.find(p => p.symbol === h.symbol);
+            if (existing) {
+              existing.market_value += h.current_value || 0;
+              existing.unrealized_pnl += h.pnl || 0;
+            } else {
+              allPositions.push({
+                symbol: h.symbol,
+                market_value: h.current_value || 0,
+                unrealized_pnl: h.pnl || 0,
+              });
+            }
+          }
+        }
+        setPortfolio({ positions: allPositions, total_assets: totalAssets, total_pnl: totalPnl });
+      } else {
+        setPortfolio(null);
+      }
     } catch (error) {
       console.error('Error fetching detail data:', error);
     }
@@ -88,6 +118,7 @@ function App() {
     setAiLogs([]);
     setLeaderboard([]);
     setPortfolioHistory([]);
+    setPortfolio(null);
   };
 
   const selectedArena = Array.isArray(arenas) ? arenas.find(a => a.id === selectedArenaId) : undefined;
@@ -477,7 +508,7 @@ function App() {
 
           {/* Right Sidebar: Portfolio & Orders */}
           <aside className="w-80 border-l border-gray-100 flex flex-col h-full bg-white">
-            <TradeList trades={trades} portfolio={null} />
+            <TradeList trades={trades} portfolio={portfolio} />
           </aside>
         </div>
       )}
