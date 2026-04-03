@@ -1,14 +1,18 @@
 import asyncio
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List, Dict, Optional
-from . import models, schemas, database
-from .agents.orchestrator import Orchestrator
-from .agents.monitoring import MonitoringAgent
-from .agents.self_improvement import SelfImprovementAgent
-from .services.stock_data import StockDataService
+import models, schemas, database
+from agents.orchestrator import Orchestrator
+from agents.monitoring import MonitoringAgent
+from agents.self_improvement import SelfImprovementAgent
+from services.stock_data import StockDataService
 
 # Dictionary to keep track of running tasks for each arena
 running_tasks: Dict[int, asyncio.Task] = {}
