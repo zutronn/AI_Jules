@@ -1,9 +1,13 @@
 import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from .models import Base
+from models import Base
 
 SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./rockalpha.db")
+
+# Use /data path for persistent storage on Fly.io
+if os.path.isdir("/data"):
+    SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:////data/rockalpha.db")
 
 if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
     engine = create_engine(
