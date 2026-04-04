@@ -68,6 +68,7 @@ async def lifespan(app: FastAPI):
     database.init_db()
     seed_data()
     db = database.SessionLocal()
+    seed_settings(db)  # Ensure settings exist before trading loops start
     arenas = db.query(models.Arena).filter(models.Arena.is_active == 1).all()
     for arena in arenas:
         running_tasks[arena.id] = asyncio.create_task(run_autonomous_trading(arena.id))
@@ -321,6 +322,10 @@ def create_manual_trade(trade_data: dict, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="arena_id is required")
     if action not in ("buy", "sell"):
         raise HTTPException(status_code=400, detail="Action must be 'buy' or 'sell'")
+    try:
+        quantity = float(quantity)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="quantity must be a number")
     if not symbol or quantity <= 0:
         raise HTTPException(status_code=400, detail="Symbol and positive quantity are required")
 
@@ -616,7 +621,7 @@ def _get_setting_value(db: Session, key: str, default: int) -> int:
             val = int(setting.value)
             # Safety net: enforce minimum of 10s to prevent tight-loop DoS
             return max(val, 10)
-    except (ValueError, TypeError):
+    except Exception:
         pass
     return default
 
