@@ -311,7 +311,10 @@ def create_manual_trade(trade_data: dict, db: Session = Depends(get_db)):
         price_data = stock_service.get_realtime_data(symbol)
         current_price = price_data.get("price", 0) if price_data else 0
     except Exception:
-        current_price = 0  # Fallback if price lookup fails
+        current_price = 0
+
+    if not current_price or current_price <= 0:
+        raise HTTPException(status_code=422, detail=f"Could not determine current market price for '{symbol}'. Trade rejected to prevent portfolio corruption.")
 
     trade = models.Trade(
         arena_id=arena_id,
@@ -327,6 +330,7 @@ def create_manual_trade(trade_data: dict, db: Session = Depends(get_db)):
     try:
         _update_portfolio(db, trade)
     except Exception as e:
+        db.rollback()
         print(f"Portfolio update error for manual trade: {e}")
 
     # Also log the reasoning
