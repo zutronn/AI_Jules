@@ -252,12 +252,15 @@ def create_manual_trade(trade_data: dict, db: Session = Depends(get_db)):
         reasoning=reasoning, created_at=datetime.datetime.utcnow(),
     )
     db.add(trade)
-    db.commit()
     try:
         _update_portfolio(db, agent_id, arena_id, symbol, action, quantity, current_price, total_value)
+        # Trade + portfolio update committed together inside _update_portfolio
     except Exception as e:
         db.rollback()
         print(f"Portfolio update error for manual trade: {e}")
+        # Still commit the trade on its own so we don't lose the record
+        db.add(trade)
+        db.commit()
     try:
         log = models.ReasoningLog(
             agent_id=agent_id, arena_id=arena_id,
@@ -464,7 +467,7 @@ def _update_portfolio(db: Session, agent_id: str, arena_id: str, symbol: str, si
             cash=STARTING_CAPITAL, total_value=STARTING_CAPITAL,
         )
         db.add(portfolio)
-        db.commit()
+        db.flush()
         db.refresh(portfolio)
     holding = db.query(models.Holding).filter(
         models.Holding.portfolio_id == portfolio.id,
