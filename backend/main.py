@@ -83,7 +83,11 @@ def verify_admin(x_admin_key: str = Header(None)):
 
 @app.get("/health")
 def health_check():
-    return {"status": "healthy"}
+    finnhub_health = stock_service.check_health()
+    return {
+        "status": "healthy",
+        "finnhub": finnhub_health,
+    }
 
 
 @app.get("/market/status")
@@ -142,11 +146,13 @@ def ai_status(db: Session = Depends(get_db)):
             "last_error": None,
             "response_latency_ms": 0,
         })
+    finnhub_health = stock_service.check_health()
     return {
         "agents": agent_list,
         "total_agents": len(agent_list),
         "connected_count": connected_count,
         "disconnected_count": len(agent_list) - connected_count,
+        "finnhub": finnhub_health,
     }
 
 

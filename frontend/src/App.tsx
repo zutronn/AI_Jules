@@ -275,7 +275,7 @@ function App() {
               </div>
             </div>
 
-            <div className="grid grid-cols-5 gap-4 mb-6">
+            <div className="grid grid-cols-6 gap-4 mb-6">
               <div className="bg-gray-800 rounded-xl p-4 text-center">
                 <div className="text-2xl font-bold text-teal-400">{totalAgents}</div>
                 <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Total Agents</div>
@@ -295,6 +295,15 @@ function App() {
               <div className="bg-gray-800 rounded-xl p-4 text-center">
                 <div className="text-2xl font-bold text-red-400">{alertsCount}</div>
                 <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Alerts</div>
+              </div>
+              <div className="bg-gray-800 rounded-xl p-4 text-center">
+                <div className={`text-2xl font-bold ${aiStatus?.finnhub?.status === 'connected' ? 'text-green-400' : aiStatus?.finnhub?.status === 'degraded' ? 'text-yellow-400' : 'text-red-400'}`}>
+                  {aiStatus?.finnhub?.status === 'connected' ? '●' : aiStatus?.finnhub?.status === 'degraded' ? '◐' : '○'}
+                </div>
+                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Finnhub Data</div>
+                <div className={`text-[9px] mt-1 ${aiStatus?.finnhub?.status === 'connected' ? 'text-green-400' : 'text-red-400'}`}>
+                  {aiStatus?.finnhub?.detail || 'Checking...'}
+                </div>
               </div>
             </div>
 
