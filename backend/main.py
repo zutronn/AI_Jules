@@ -86,6 +86,34 @@ def health_check():
     return {"status": "healthy"}
 
 
+@app.get("/market/status")
+def market_status():
+    """Return current US stock market open/closed status with next open time."""
+    try:
+        from zoneinfo import ZoneInfo
+    except ImportError:
+        from backports.zoneinfo import ZoneInfo
+    et = ZoneInfo("America/New_York")
+    now_et = datetime.datetime.now(et)
+    market_open = is_us_market_open()
+
+    # Calculate next market open
+    next_open = now_et.replace(hour=9, minute=30, second=0, microsecond=0)
+    if market_open or now_et >= next_open.replace(hour=16):
+        # If market is open or past close, next open is tomorrow (or next weekday)
+        next_open += datetime.timedelta(days=1)
+    while next_open.weekday() > 4 or (next_open.month, next_open.day) in US_MARKET_HOLIDAYS_2026:
+        next_open += datetime.timedelta(days=1)
+    next_open = next_open.replace(hour=9, minute=30, second=0, microsecond=0)
+
+    return {
+        "is_open": market_open,
+        "current_time_et": now_et.strftime("%Y-%m-%d %H:%M:%S ET"),
+        "next_open_et": next_open.strftime("%Y-%m-%d %H:%M:%S ET"),
+        "market_hours": "9:30 AM - 4:00 PM ET",
+    }
+
+
 @app.get("/ai/status")
 def ai_status(db: Session = Depends(get_db)):
     agents_db = db.query(models.Agent).all()
@@ -531,6 +559,43 @@ def _get_setting_value(db: Session, key: str, default: int) -> int:
     return max(default, 10)
 
 
+# US stock market hours: 9:30 AM - 4:00 PM Eastern Time, weekdays only
+# Major US holidays when market is closed
+US_MARKET_HOLIDAYS_2026 = [
+    (1, 1),   # New Year's Day
+    (1, 19),  # MLK Day
+    (2, 16),  # Presidents' Day
+    (4, 3),   # Good Friday
+    (5, 25),  # Memorial Day
+    (6, 19),  # Juneteenth
+    (7, 3),   # Independence Day (observed)
+    (9, 7),   # Labor Day
+    (11, 26), # Thanksgiving
+    (12, 25), # Christmas
+]
+
+
+def is_us_market_open() -> bool:
+    """Check if the US stock market is currently open.
+    Market hours: 9:30 AM - 4:00 PM Eastern Time, Mon-Fri, excluding holidays."""
+    try:
+        from zoneinfo import ZoneInfo
+    except ImportError:
+        from backports.zoneinfo import ZoneInfo
+    et = ZoneInfo("America/New_York")
+    now_et = datetime.datetime.now(et)
+    # Weekday check: Mon=0, Fri=4
+    if now_et.weekday() > 4:
+        return False
+    # Holiday check
+    if (now_et.month, now_et.day) in US_MARKET_HOLIDAYS_2026:
+        return False
+    # Time check: 9:30 AM - 4:00 PM ET
+    market_open = now_et.replace(hour=9, minute=30, second=0, microsecond=0)
+    market_close = now_et.replace(hour=16, minute=0, second=0, microsecond=0)
+    return market_open <= now_et <= market_close
+
+
 def run_cycle(db: Session, arena_id: str):
     arena = db.query(models.Arena).filter(models.Arena.id == arena_id).first()
     if not arena:
@@ -722,6 +787,13 @@ async def run_autonomous_trading(arena_id: str):
 
     while True:
         try:
+            # Check if US market is open before running a cycle
+            if not is_us_market_open():
+                print(f"Arena {arena_id}: US market closed, sleeping 60s until next check...")
+                last_successful_cycle[arena_id] = datetime.datetime.utcnow()  # prevent watchdog restart
+                await asyncio.sleep(60)
+                continue
+
             # Run the entire cycle (including DB session) in a thread pool
             # to avoid blocking the event loop and avoid cross-thread session issues
             cycle_time = await asyncio.to_thread(_run_cycle_with_own_session, arena_id)

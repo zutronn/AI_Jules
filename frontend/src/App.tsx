@@ -21,8 +21,10 @@ function App() {
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [portfolioHistory, setPortfolioHistory] = useState<any[]>([]);
   const [portfolio, setPortfolio] = useState<any>(null);
+  const [allAgentPortfolios, setAllAgentPortfolios] = useState<any[]>([]);
   const [view, setView] = useState<'home' | 'detail' | 'admin' | 'manual-trade' | 'register' | 'full-logs'>('home');
   const [aiStatus, setAiStatus] = useState<any>(null);
+  const [marketStatus, setMarketStatus] = useState<any>(null);
 
   const fetchArenas = async () => {
     try {
@@ -48,6 +50,15 @@ function App() {
     }
   };
 
+  const fetchMarketStatus = async () => {
+    try {
+      const res = await axios.get(`${API_BASE_URL}/market/status`);
+      if (res.data) setMarketStatus(res.data);
+    } catch (error) {
+      console.error('Error fetching market status:', error);
+    }
+  };
+
   const fetchDetailData = async () => {
     if (selectedArenaId === null) return;
     try {
@@ -63,15 +74,16 @@ function App() {
       setLeaderboard(Array.isArray(leaderboardRes.data) ? leaderboardRes.data : []);
       setPortfolioHistory(Array.isArray(historyRes.data) ? historyRes.data : []);
 
-      // Aggregate portfolio data from all agents for the TradeList sidebar
+      // Store individual agent portfolios for the switcher
       const allPortfolios = Array.isArray(portfolioAllRes.data) ? portfolioAllRes.data : [];
+      setAllAgentPortfolios(allPortfolios);
       if (allPortfolios.length > 0) {
         const allPositions: any[] = [];
         let totalAssets = 0;
         let totalPnl = 0;
         for (const agentPortfolio of allPortfolios) {
           totalAssets += agentPortfolio.total_value || 0;
-          totalPnl += (agentPortfolio.total_value || 0) - 100000; // return vs initial $100k
+          totalPnl += (agentPortfolio.total_value || 0) - 100000;
           for (const h of (agentPortfolio.holdings || [])) {
             const existing = allPositions.find(p => p.symbol === h.symbol);
             if (existing) {
@@ -98,8 +110,10 @@ function App() {
   useEffect(() => {
     fetchArenas();
     fetchAiStatus();
-    const interval = setInterval(fetchAiStatus, 30000);
-    return () => clearInterval(interval);
+    fetchMarketStatus();
+    const aiInterval = setInterval(fetchAiStatus, 30000);
+    const marketInterval = setInterval(fetchMarketStatus, 60000);
+    return () => { clearInterval(aiInterval); clearInterval(marketInterval); };
   }, []);
 
   useEffect(() => {
@@ -123,6 +137,7 @@ function App() {
     setLeaderboard([]);
     setPortfolioHistory([]);
     setPortfolio(null);
+    setAllAgentPortfolios([]);
   };
 
   const handleOpenAdmin = () => {
@@ -353,9 +368,12 @@ function App() {
                 <p className="text-xl text-gray-500 font-medium">Browse live AI tradings by theme & strategy. Jump in and copy-trade whoever's winning.</p>
             </div>
             <div className="flex flex-col items-end">
-                 <div className="bg-orange-50 text-orange-600 px-4 py-2 rounded-full text-xs font-bold mb-4 flex items-center border border-orange-100">
-                    <span className="w-2 h-2 bg-orange-600 rounded-full mr-2 animate-pulse"></span>
-                    44h til Market Open
+                 <div className={`${marketStatus?.is_open ? 'bg-green-50 text-green-600 border-green-100' : 'bg-orange-50 text-orange-600 border-orange-100'} px-4 py-2 rounded-full text-xs font-bold mb-4 flex items-center border`}>
+                    <span className={`w-2 h-2 ${marketStatus?.is_open ? 'bg-green-600' : 'bg-orange-600'} rounded-full mr-2 animate-pulse`}></span>
+                    {marketStatus?.is_open ? 'US Market Open' : `US Market Closed`}
+                    {!marketStatus?.is_open && marketStatus?.next_open_et && (
+                      <span className="ml-1 text-gray-400">| Next: {marketStatus.next_open_et}</span>
+                    )}
                 </div>
                 <ArenaForm onCreated={fetchArenas} />
             </div>
@@ -498,7 +516,9 @@ function App() {
                       <span className="w-2 h-2 bg-orange-600 rounded-full mr-2"></span>
                       Portfolio History
                     </h3>
-                    <div className="text-xs font-bold text-orange-600">Status: US Market Closed</div>
+                    <div className={`text-xs font-bold ${marketStatus?.is_open ? 'text-green-600' : 'text-orange-600'}`}>
+                      {marketStatus?.is_open ? 'Status: US Market Open' : 'Status: US Market Closed'}
+                    </div>
                   </div>
 
                   {portfolioHistory.length > 0 ? (
@@ -565,7 +585,7 @@ function App() {
 
           {/* Right Sidebar: Portfolio & Orders */}
           <aside className="w-80 border-l border-gray-100 flex flex-col h-full bg-white">
-            <TradeList trades={trades} portfolio={portfolio} />
+            <TradeList trades={trades} portfolio={portfolio} allAgentPortfolios={allAgentPortfolios} />
           </aside>
         </div>
       )}
