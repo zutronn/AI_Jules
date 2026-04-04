@@ -109,7 +109,7 @@ const TradeList = ({ trades, portfolio }: { trades: any[]; portfolio: any }) => 
                         </div>
                         <div>
                             <p className="font-bold text-gray-900 text-xs">{trade.symbol}</p>
-                            <p className="text-[10px] text-gray-400">{new Date(trade.timestamp).toLocaleTimeString()}</p>
+                            <p className="text-[10px] text-gray-400">{(() => { const ts = trade.timestamp || trade.created_at; if (!ts) return ''; const d = new Date(typeof ts === 'string' && !ts.includes('T') ? ts.replace(' ', 'T') + 'Z' : ts); return isNaN(d.getTime()) ? ts : d.toLocaleTimeString(); })()}</p>
                         </div>
                     </div>
                     <div className="text-right">

@@ -44,6 +44,13 @@ class AIResponse(Base):
     response = Column(Text)
     timestamp = Column(DateTime, default=datetime.datetime.utcnow)
 
+class Setting(Base):
+    __tablename__ = "settings"
+    id = Column(Integer, primary_key=True, index=True)
+    key = Column(String, unique=True, index=True)
+    value = Column(String, default="")
+    description = Column(String, default="")
+
 class Portfolio(Base):
     __tablename__ = "portfolio"
     id = Column(Integer, primary_key=True, index=True)

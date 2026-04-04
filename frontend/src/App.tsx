@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { ChevronLeft, Info, Target, FileText, Send, Share2, Globe } from 'lucide-react';
+import { ChevronLeft, Info, Target, FileText, Send, Share2, Globe, Settings } from 'lucide-react';
 import TradeList from './components/TradeList';
 import AILogs from './components/AILogs';
 import ArenaCard from './components/ArenaCard';
 import Hero from './components/Hero';
 import ArenaForm from './components/ArenaForm';
+import AdminPage from './components/AdminPage';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
@@ -17,7 +18,7 @@ function App() {
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [portfolioHistory, setPortfolioHistory] = useState<any[]>([]);
   const [portfolio, setPortfolio] = useState<any>(null);
-  const [view, setView] = useState<'home' | 'detail'>('home');
+  const [view, setView] = useState<'home' | 'detail' | 'admin'>('home');
   const [aiStatus, setAiStatus] = useState<any>(null);
 
   const fetchArenas = async () => {
@@ -121,6 +122,10 @@ function App() {
     setPortfolio(null);
   };
 
+  const handleOpenAdmin = () => {
+    setView('admin');
+  };
+
   const selectedArena = Array.isArray(arenas) ? arenas.find(a => a.id === selectedArenaId) : undefined;
 
   const agents = aiStatus?.agents || [];
@@ -198,6 +203,10 @@ function App() {
             <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="1" fill="none"/><text x="10" y="14" textAnchor="middle" fontSize="10" fill="currentColor">$</text></svg>
             AI Tokens
           </a>
+          <span onClick={handleOpenAdmin} className="flex items-center cursor-pointer hover:text-orange-600">
+            <Settings className="w-4 h-4 mr-1" />
+            Admin
+          </span>
           <a href="/polymarket/index.html" className="flex items-center cursor-pointer hover:text-orange-600">
             <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="1" fill="none"/><text x="10" y="14" textAnchor="middle" fontSize="10" fill="currentColor">P</text></svg>
             Polymarket
@@ -205,7 +214,9 @@ function App() {
         </div>
       </nav>
 
-      {view === 'home' ? (
+      {view === 'admin' ? (
+        <AdminPage onBack={handleBackToHome} />
+      ) : view === 'home' ? (
         <main className="max-w-7xl mx-auto px-8 py-12">
           <Hero />
 

@@ -250,6 +250,42 @@ async def update_arena(arena_id: int, arena_update: schemas.ArenaUpdate, db: Ses
 
     return db_arena
 
+# --- Settings Endpoints ---
+
+DEFAULT_SETTINGS = [
+    {"key": "trading_cycle_seconds", "value": "10", "description": "Trading cycle interval in seconds (10-3600)"},
+    {"key": "chat_min_interval", "value": "15", "description": "Minimum chat interval in seconds"},
+    {"key": "chat_max_interval", "value": "45", "description": "Maximum chat interval in seconds"},
+    {"key": "price_update_interval", "value": "3", "description": "Price update interval in seconds"},
+    {"key": "ai_thinking_interval", "value": "7200", "description": "AI thinking interval in seconds (default 5 minutes)"},
+]
+
+def seed_settings(db: Session):
+    """Seed default settings if they don't exist."""
+    for s in DEFAULT_SETTINGS:
+        existing = db.query(models.Setting).filter(models.Setting.key == s["key"]).first()
+        if not existing:
+            db.add(models.Setting(**s))
+    db.commit()
+
+@app.get("/settings", response_model=List[schemas.Setting])
+def read_settings(db: Session = Depends(get_db)):
+    settings = db.query(models.Setting).all()
+    if not settings:
+        seed_settings(db)
+        settings = db.query(models.Setting).all()
+    return settings
+
+@app.put("/settings/{key}")
+def update_setting(key: str, update: schemas.SettingUpdate, db: Session = Depends(get_db)):
+    setting = db.query(models.Setting).filter(models.Setting.key == key).first()
+    if not setting:
+        raise HTTPException(status_code=404, detail=f"Setting '{key}' not found")
+    setting.value = update.value
+    db.commit()
+    db.refresh(setting)
+    return {"key": setting.key, "value": setting.value, "description": setting.description}
+
 # --- Existing Endpoints (Updated) ---
 
 @app.get("/trades", response_model=List[schemas.Trade])

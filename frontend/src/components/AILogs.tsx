@@ -24,10 +24,10 @@ const AILogs = ({ logs }: { logs: any[] }) => {
                 </div>
                 <div className="p-4 bg-gray-50 rounded-2xl rounded-tl-none border border-gray-100 group-hover:border-orange-100 transition-colors">
                   <p className="text-xs font-medium text-gray-600 leading-relaxed">
-                      {log.response}
+                      {log.response || log.message}
                   </p>
                 </div>
-                <p className="text-[10px] text-gray-300 font-bold uppercase tracking-widest ml-1">{new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                <p className="text-[10px] text-gray-300 font-bold uppercase tracking-widest ml-1">{(() => { const ts = log.timestamp || log.created_at; if (!ts) return ''; const d = new Date(ts.includes('T') ? ts : ts.replace(' ', 'T') + 'Z'); return isNaN(d.getTime()) ? ts : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); })()}</p>
             </div>
             ))
         )}

@@ -72,6 +72,18 @@ class AIResponse(AIResponseBase):
     timestamp: datetime
     model_config = ConfigDict(from_attributes=True)
 
+class SettingBase(BaseModel):
+    key: str
+    value: str
+    description: str = ""
+
+class SettingUpdate(BaseModel):
+    value: str
+
+class Setting(SettingBase):
+    id: int
+    model_config = ConfigDict(from_attributes=True)
+
 class PortfolioBase(BaseModel):
     arena_id: int
     symbol: str
