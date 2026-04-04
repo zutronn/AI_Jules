@@ -3,7 +3,7 @@ import axios from 'axios';
 import { Settings, Clock, Zap, RefreshCw, Save, ChevronLeft, Lock, Eye, EyeOff } from 'lucide-react';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
-const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || 'changeme';
+const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || 'lawliet2026';
 
 interface SettingItem {
   key: string;
@@ -106,8 +106,11 @@ const AdminPage = ({ onBack }: { onBack: () => void }) => {
   };
 
   useEffect(() => {
-    fetchSettings();
-  }, []);
+    if (isAuthenticated) {
+      setLoading(true);
+      fetchSettings();
+    }
+  }, [isAuthenticated]);
 
   const handleSave = async (key: string) => {
     setSaving(prev => ({ ...prev, [key]: true }));
