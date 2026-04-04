@@ -142,7 +142,7 @@ def read_arenas(db: Session = Depends(get_db)):
 
 
 @app.post("/arenas")
-def create_arena(arena_data: dict, db: Session = Depends(get_db)):
+async def create_arena(arena_data: dict, db: Session = Depends(get_db)):
     arena_id = arena_data.get("id") or arena_data.get("name", "").lower().replace(" ", "-")
     tickers = arena_data.get("tickers", "")
     if isinstance(tickers, list):
@@ -237,6 +237,15 @@ def create_manual_trade(trade_data: dict, db: Session = Depends(get_db)):
         if quantity > held_qty:
             raise HTTPException(status_code=400, detail=f"Cannot sell {quantity} {symbol}: only {held_qty} shares held")
     total_value = current_price * quantity
+    # Buy-side cash balance validation
+    if action == "buy":
+        portfolio = db.query(models.Portfolio).filter(
+            models.Portfolio.agent_id == agent_id,
+            models.Portfolio.arena_id == arena_id,
+        ).first()
+        available_cash = portfolio.cash if portfolio else STARTING_CAPITAL
+        if total_value > available_cash:
+            raise HTTPException(status_code=400, detail=f"Insufficient funds: need ${total_value:.2f} but only ${available_cash:.2f} cash available")
     trade = models.Trade(
         agent_id=agent_id, arena_id=arena_id, symbol=symbol, side=action,
         price=current_price, quantity=quantity, total_value=total_value,
