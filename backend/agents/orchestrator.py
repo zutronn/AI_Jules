@@ -1,7 +1,7 @@
 import datetime
 from typing import Dict, Any, List
 from sqlalchemy.orm import Session
-from .mocks import (
+from agents.mocks import (
     TrendFollowerAgent,
     SentimentAnalyzerAgent,
     VolatilityScoutAgent,
@@ -9,7 +9,7 @@ from .mocks import (
     RiskEvaluatorAgent,
     TechnicalAnalystAgent
 )
-from .. import models
+import models
 
 
 class Orchestrator:

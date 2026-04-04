@@ -1,8 +1,8 @@
 import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from .models import Base
-from . import turso_dbapi
+from models import Base
+import turso_dbapi
 
 # Turso/libsql connection support
 # Set TURSO_DATABASE_URL and TURSO_AUTH_TOKEN environment variables for Turso

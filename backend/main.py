@@ -11,9 +11,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 from typing import List, Dict, Optional
-from . import models, database
-from .agents.prompts import build_system_prompt, build_context_prompt
-from .services.stock_data import StockDataService
+import models, database
+from agents.prompts import build_system_prompt, build_context_prompt
+from services.stock_data import StockDataService
 
 running_tasks: Dict[str, asyncio.Task] = {}
 last_successful_cycle: Dict[str, datetime.datetime] = {}
@@ -612,7 +612,7 @@ def run_cycle(db: Session, arena_id: str):
         )
 
         # Use mock agents for now; replace with real AI API calls later
-        from .agents.mocks import MockAIModel
+        from agents.mocks import MockAIModel
         mock_agent = MockAIModel(agent.name)
         response_text = mock_agent.run({"symbol": tickers[0] if tickers else "", "prices": price_map})
 
