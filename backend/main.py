@@ -431,7 +431,7 @@ def register_user(user_data: dict, db: Session = Depends(get_db)):
 
 
 @app.get("/admin/table/{table_name}")
-def admin_table_browser(table_name: str, limit: int = 50, offset: int = 0, db: Session = Depends(get_db)):
+def admin_table_browser(table_name: str, limit: int = 50, offset: int = 0, db: Session = Depends(get_db), _: str = Depends(verify_admin)):
     allowed = [
         "arenas", "agents", "trades", "reasoning_logs", "portfolios",
         "holdings", "portfolio_history", "settings", "users",
