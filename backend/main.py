@@ -270,10 +270,8 @@ def seed_settings(db: Session):
 
 @app.get("/settings", response_model=List[schemas.Setting])
 def read_settings(db: Session = Depends(get_db)):
+    seed_settings(db)
     settings = db.query(models.Setting).all()
-    if not settings:
-        seed_settings(db)
-        settings = db.query(models.Setting).all()
     return settings
 
 @app.put("/settings/{key}")
