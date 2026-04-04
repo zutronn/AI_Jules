@@ -278,11 +278,28 @@ def read_settings(db: Session = Depends(get_db)):
     settings = db.query(models.Setting).all()
     return settings
 
+# Minimum allowed values for interval settings (in seconds)
+SETTING_MIN_VALUES = {
+    "trading_cycle_seconds": 10,
+    "chat_min_interval": 1,
+    "chat_max_interval": 1,
+    "price_update_interval": 1,
+    "ai_thinking_interval": 60,
+}
+
 @app.put("/settings/{key}")
 def update_setting(key: str, update: schemas.SettingUpdate, db: Session = Depends(get_db)):
     setting = db.query(models.Setting).filter(models.Setting.key == key).first()
     if not setting:
         raise HTTPException(status_code=404, detail=f"Setting '{key}' not found")
+    # Validate numeric interval settings have a safe minimum
+    if key in SETTING_MIN_VALUES:
+        try:
+            val = int(update.value)
+        except (ValueError, TypeError):
+            raise HTTPException(status_code=400, detail=f"Setting '{key}' must be a valid integer")
+        if val < SETTING_MIN_VALUES[key]:
+            raise HTTPException(status_code=400, detail=f"Setting '{key}' must be >= {SETTING_MIN_VALUES[key]} seconds")
     setting.value = update.value
     db.commit()
     db.refresh(setting)
@@ -300,6 +317,8 @@ def create_manual_trade(trade_data: dict, db: Session = Depends(get_db)):
     quantity = trade_data.get("quantity", 0)
     reasoning = trade_data.get("reasoning", "")
 
+    if not arena_id:
+        raise HTTPException(status_code=400, detail="arena_id is required")
     if action not in ("buy", "sell"):
         raise HTTPException(status_code=400, detail="Action must be 'buy' or 'sell'")
     if not symbol or quantity <= 0:
@@ -594,7 +613,9 @@ def _get_setting_value(db: Session, key: str, default: int) -> int:
     try:
         setting = db.query(models.Setting).filter(models.Setting.key == key).first()
         if setting and setting.value:
-            return int(setting.value)
+            val = int(setting.value)
+            # Safety net: enforce minimum of 10s to prevent tight-loop DoS
+            return max(val, 10)
     except (ValueError, TypeError):
         pass
     return default
