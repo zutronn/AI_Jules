@@ -25,6 +25,7 @@ function App() {
   const [view, setView] = useState<'home' | 'detail' | 'admin' | 'manual-trade' | 'register' | 'full-logs'>('home');
   const [aiStatus, setAiStatus] = useState<any>(null);
   const [marketStatus, setMarketStatus] = useState<any>(null);
+  const [backendHealth, setBackendHealth] = useState<{status: string; detail: string; latencyMs: number | null}>({status: 'checking', detail: 'Checking...', latencyMs: null});
 
   const fetchArenas = async () => {
     try {
@@ -56,6 +57,23 @@ function App() {
       if (res.data) setMarketStatus(res.data);
     } catch (error) {
       console.error('Error fetching market status:', error);
+    }
+  };
+
+  const fetchBackendHealth = async () => {
+    const start = Date.now();
+    try {
+      const res = await axios.get(`${API_BASE_URL}/health`, { timeout: 10000 });
+      const latencyMs = Date.now() - start;
+      if (res.data?.status === 'healthy') {
+        setBackendHealth({ status: 'healthy', detail: `OK — ${latencyMs}ms`, latencyMs });
+      } else {
+        setBackendHealth({ status: 'degraded', detail: `Response: ${JSON.stringify(res.data).slice(0, 40)}`, latencyMs });
+      }
+    } catch (error: any) {
+      const latencyMs = Date.now() - start;
+      const msg = error?.code === 'ECONNABORTED' ? 'Timeout (>10s)' : error?.message || 'Unreachable';
+      setBackendHealth({ status: 'down', detail: msg, latencyMs });
     }
   };
 
@@ -111,9 +129,11 @@ function App() {
     fetchArenas();
     fetchAiStatus();
     fetchMarketStatus();
+    fetchBackendHealth();
     const aiInterval = setInterval(fetchAiStatus, 30000);
     const marketInterval = setInterval(fetchMarketStatus, 60000);
-    return () => { clearInterval(aiInterval); clearInterval(marketInterval); };
+    const healthInterval = setInterval(fetchBackendHealth, 30000);
+    return () => { clearInterval(aiInterval); clearInterval(marketInterval); clearInterval(healthInterval); };
   }, []);
 
   useEffect(() => {
@@ -275,7 +295,7 @@ function App() {
               </div>
             </div>
 
-            <div className="grid grid-cols-6 gap-4 mb-6">
+            <div className="grid grid-cols-7 gap-3 mb-6">
               <div className="bg-gray-800 rounded-xl p-4 text-center">
                 <div className="text-2xl font-bold text-teal-400">{totalAgents}</div>
                 <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Total Agents</div>
@@ -303,6 +323,15 @@ function App() {
                 <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Finnhub Data</div>
                 <div className={`text-[9px] mt-1 ${aiStatus?.finnhub?.status === 'connected' ? 'text-green-400' : 'text-red-400'}`}>
                   {aiStatus?.finnhub?.detail || 'Checking...'}
+                </div>
+              </div>
+              <div className="bg-gray-800 rounded-xl p-4 text-center">
+                <div className={`text-2xl font-bold ${backendHealth.status === 'healthy' ? 'text-green-400' : backendHealth.status === 'degraded' ? 'text-yellow-400' : backendHealth.status === 'down' ? 'text-red-400' : 'text-gray-400'}`}>
+                  {backendHealth.status === 'healthy' ? '●' : backendHealth.status === 'degraded' ? '◐' : backendHealth.status === 'down' ? '○' : '◌'}
+                </div>
+                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Fly.io Backend</div>
+                <div className={`text-[9px] mt-1 ${backendHealth.status === 'healthy' ? 'text-green-400' : backendHealth.status === 'down' ? 'text-red-400' : 'text-gray-400'}`}>
+                  {backendHealth.detail}
                 </div>
               </div>
             </div>
