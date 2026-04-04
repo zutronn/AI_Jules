@@ -4,55 +4,119 @@ import datetime
 
 Base = declarative_base()
 
+# ---- Schema matches real Turso database at lawliet-labs ----
+
 class Arena(Base):
     __tablename__ = "arenas"
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, unique=True, index=True)
-    tickers = Column(String)  # Comma separated
-    cycle_time = Column(Integer, default=10) # In seconds
-    is_active = Column(Boolean, default=True)
-    tags = Column(String, default="") # Comma separated
+    id = Column(String, primary_key=True, index=True)  # e.g. "classic", "ai-stock"
+    name = Column(String, index=True)
     description = Column(String, default="")
-    rule = Column(String, default="")
-    prompt_text = Column(Text, default="")
+    tickers = Column(String)  # Comma separated
+    rules = Column(String, default="")
+    prompt = Column(Text, default="")
+    tags = Column(String, default="")  # Comma separated
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+class Agent(Base):
+    __tablename__ = "agents"
+    id = Column(String, primary_key=True, index=True)  # e.g. "chatgpt", "deepseek"
+    name = Column(String, index=True)
+    avatar_url = Column(String, default="")
+    strategy_description = Column(Text, default="")
+    personality = Column(String, default="")
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
 class Trade(Base):
     __tablename__ = "trades"
     id = Column(Integer, primary_key=True, index=True)
-    arena_id = Column(Integer, index=True)
+    agent_id = Column(String, index=True)
+    arena_id = Column(String, index=True)
     symbol = Column(String, index=True)
-    side = Column(String)  # BUY or SELL
+    side = Column(String)  # buy or sell
+    quantity = Column(Float)
     price = Column(Float)
-    amount = Column(Float)
-    timestamp = Column(DateTime, default=datetime.datetime.utcnow)
+    total_value = Column(Float)
+    reasoning = Column(Text, default="")
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
-class SystemLog(Base):
-    __tablename__ = "logs"
+class ReasoningLog(Base):
+    __tablename__ = "reasoning_logs"
     id = Column(Integer, primary_key=True, index=True)
-    arena_id = Column(Integer, index=True, nullable=True)
-    level = Column(String)  # INFO, WARNING, ERROR, CRITICAL
-    source = Column(String) # e.g., Orchestrator, Monitoring, Frontend
+    agent_id = Column(String, index=True)
+    arena_id = Column(String, index=True)
     message = Column(Text)
-    timestamp = Column(DateTime, default=datetime.datetime.utcnow)
-
-class AIResponse(Base):
-    __tablename__ = "ai_responses"
-    id = Column(Integer, primary_key=True, index=True)
-    arena_id = Column(Integer, index=True)
-    agent_name = Column(String, index=True)
-    prompt = Column(Text)
-    response = Column(Text)
-    timestamp = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
 class Portfolio(Base):
-    __tablename__ = "portfolio"
+    __tablename__ = "portfolios"
     id = Column(Integer, primary_key=True, index=True)
-    arena_id = Column(Integer, index=True)
-    symbol = Column(String, index=True)
-    quantity = Column(Float, default=0.0)        # Net shares held (positive = long)
-    avg_entry_price = Column(Float, default=0.0) # Weighted average entry price
-    current_price = Column(Float, default=0.0)   # Latest market price
-    total_invested = Column(Float, default=0.0)  # Total $ spent buying
-    total_returned = Column(Float, default=0.0)  # Total $ received from sells
-    realized_pnl = Column(Float, default=0.0)    # Locked-in profit/loss from closed trades
+    agent_id = Column(String, index=True)
+    arena_id = Column(String, index=True)
+    cash = Column(Float, default=100000.0)
+    total_value = Column(Float, default=100000.0)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+class Holding(Base):
+    __tablename__ = "holdings"
+    id = Column(Integer, primary_key=True, index=True)
+    portfolio_id = Column(Integer, index=True)
+    symbol = Column(String, index=True)
+    quantity = Column(Float, default=0.0)
+    avg_cost = Column(Float, default=0.0)
+    current_value = Column(Float, default=0.0)
+    pnl = Column(Float, default=0.0)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+class PortfolioHistory(Base):
+    __tablename__ = "portfolio_history"
+    id = Column(Integer, primary_key=True, index=True)
+    portfolio_id = Column(Integer, index=True)
+    total_value = Column(Float, default=0.0)
+    timestamp = Column(DateTime, default=datetime.datetime.utcnow)
+
+class Setting(Base):
+    __tablename__ = "settings"
+    key = Column(String, primary_key=True, index=True)
+    value = Column(String, default="")
+    description = Column(String, default="")
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+class User(Base):
+    __tablename__ = "users"
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String, unique=True, index=True)
+    verified = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+class AgentMemory(Base):
+    __tablename__ = "agent_memories"
+    id = Column(Integer, primary_key=True, index=True)
+    agent_id = Column(String, index=True)
+    content = Column(Text)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+class AIConnectionStatus(Base):
+    __tablename__ = "ai_connection_status"
+    id = Column(Integer, primary_key=True, index=True)
+    agent_id = Column(String, index=True)
+    connected = Column(Boolean, default=False)
+    last_check = Column(DateTime, default=datetime.datetime.utcnow)
+
+class PriceHistory(Base):
+    __tablename__ = "price_history"
+    id = Column(Integer, primary_key=True, index=True)
+    symbol = Column(String, index=True)
+    price = Column(Float)
+    change_percent = Column(Float, default=0.0)
+    volume = Column(Float, default=0.0)
+    timestamp = Column(DateTime, default=datetime.datetime.utcnow)
+
+class StrategyPerformance(Base):
+    __tablename__ = "strategy_performance"
+    id = Column(Integer, primary_key=True, index=True)
+    agent_id = Column(String, index=True)
+    arena_id = Column(String, index=True)
+    metric = Column(String)
+    value = Column(Float)
+    timestamp = Column(DateTime, default=datetime.datetime.utcnow)

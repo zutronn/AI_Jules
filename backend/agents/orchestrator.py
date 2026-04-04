@@ -1,6 +1,7 @@
+import datetime
 from typing import Dict, Any, List
 from sqlalchemy.orm import Session
-from .mocks import (
+from agents.mocks import (
     TrendFollowerAgent,
     SentimentAnalyzerAgent,
     VolatilityScoutAgent,
@@ -8,7 +9,8 @@ from .mocks import (
     RiskEvaluatorAgent,
     TechnicalAnalystAgent
 )
-from .. import models, schemas
+import models
+
 
 class Orchestrator:
     def __init__(self, db: Session):
@@ -22,7 +24,7 @@ class Orchestrator:
             TechnicalAnalystAgent()
         ]
 
-    def run_trading_cycle(self, market_data: Dict[str, Any], arena_id: int) -> str:
+    def run_trading_cycle(self, market_data: Dict[str, Any], arena_id: str) -> str:
         agent_responses = []
         for agent in self.agents:
             response_text = agent.run(market_data)
@@ -31,20 +33,18 @@ class Orchestrator:
                 "response": response_text
             })
 
-            # Save AI response to DB
-            db_response = models.AIResponse(
+            # Save reasoning log to DB
+            db_log = models.ReasoningLog(
+                agent_id=agent.name.lower().replace(" ", "-"),
                 arena_id=arena_id,
-                agent_name=agent.name,
-                prompt=str(market_data),
-                response=response_text
+                message=f"[ANALYSIS] {response_text}",
+                created_at=datetime.datetime.utcnow(),
             )
-            self.db.add(db_response)
+            self.db.add(db_log)
 
         self.db.commit()
 
         # Orchestration logic: simple plurality wins
-        # Any side with more votes than the other wins (minimum 1 vote needed).
-        # Ties go to HOLD.
         buy_votes = sum(1 for r in agent_responses if "BUY" in r["response"])
         sell_votes = sum(1 for r in agent_responses if "SELL" in r["response"])
 
@@ -55,11 +55,11 @@ class Orchestrator:
             decision = "SELL"
 
         # Log the decision
-        db_log = models.SystemLog(
+        db_log = models.ReasoningLog(
+            agent_id="system",
             arena_id=arena_id,
-            level="INFO",
-            source="Orchestrator",
-            message=f"Cycle for {market_data.get('symbol')} complete. Decision: {decision}. Votes - BUY: {buy_votes}, SELL: {sell_votes}"
+            message=f"[ORCHESTRATOR] Cycle for {market_data.get('symbol')} complete. Decision: {decision}. Votes - BUY: {buy_votes}, SELL: {sell_votes}",
+            created_at=datetime.datetime.utcnow(),
         )
         self.db.add(db_log)
         self.db.commit()

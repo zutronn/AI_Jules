@@ -44,7 +44,7 @@ const ArenaForm = ({ onCreated }: { onCreated: () => void }) => {
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="px-6 py-2 bg-purple-600 text-white rounded-full font-bold hover:bg-purple-700 transition-colors shadow-lg"
+        className="px-6 py-2 bg-orange-600 text-white rounded-full font-bold hover:bg-orange-700 transition-colors shadow-lg"
       >
         + Create Arena
       </button>
@@ -62,7 +62,7 @@ const ArenaForm = ({ onCreated }: { onCreated: () => void }) => {
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full bg-gray-50 text-gray-900 px-4 py-3 rounded-xl border border-gray-200 focus:border-purple-500 outline-none transition-all"
+              className="w-full bg-gray-50 text-gray-900 px-4 py-3 rounded-xl border border-gray-200 focus:border-orange-500 outline-none transition-all"
               placeholder="e.g. AI PMs Storm Cup"
               required
             />
@@ -74,7 +74,7 @@ const ArenaForm = ({ onCreated }: { onCreated: () => void }) => {
                   type="text"
                   value={tickers}
                   onChange={(e) => setTickers(e.target.value)}
-                  className="w-full bg-gray-50 text-gray-900 px-4 py-3 rounded-xl border border-gray-200 focus:border-purple-500 outline-none transition-all"
+                  className="w-full bg-gray-50 text-gray-900 px-4 py-3 rounded-xl border border-gray-200 focus:border-orange-500 outline-none transition-all"
                   placeholder="AAPL,MSFT"
                   required
                 />
@@ -86,7 +86,7 @@ const ArenaForm = ({ onCreated }: { onCreated: () => void }) => {
                   min="1"
                   value={cycleTime}
                   onChange={(e) => setCycleTime(parseInt(e.target.value))}
-                  className="w-full bg-gray-50 text-gray-900 px-4 py-3 rounded-xl border border-gray-200 focus:border-purple-500 outline-none transition-all"
+                  className="w-full bg-gray-50 text-gray-900 px-4 py-3 rounded-xl border border-gray-200 focus:border-orange-500 outline-none transition-all"
                   required
                 />
               </div>
@@ -97,7 +97,7 @@ const ArenaForm = ({ onCreated }: { onCreated: () => void }) => {
               type="text"
               value={rule}
               onChange={(e) => setRule(e.target.value)}
-              className="w-full bg-gray-50 text-gray-900 px-4 py-3 rounded-xl border border-gray-200 focus:border-purple-500 outline-none transition-all"
+              className="w-full bg-gray-50 text-gray-900 px-4 py-3 rounded-xl border border-gray-200 focus:border-orange-500 outline-none transition-all"
               placeholder="e.g. Live Trading Cup"
             />
           </div>
@@ -106,7 +106,7 @@ const ArenaForm = ({ onCreated }: { onCreated: () => void }) => {
             <textarea
               value={promptText}
               onChange={(e) => setPromptText(e.target.value)}
-              className="w-full bg-gray-50 text-gray-900 px-4 py-3 rounded-xl border border-gray-200 focus:border-purple-500 outline-none transition-all"
+              className="w-full bg-gray-50 text-gray-900 px-4 py-3 rounded-xl border border-gray-200 focus:border-orange-500 outline-none transition-all"
               placeholder="System prompt for AI agents..."
               rows={2}
             />
@@ -117,14 +117,14 @@ const ArenaForm = ({ onCreated }: { onCreated: () => void }) => {
               type="text"
               value={tags}
               onChange={(e) => setTags(e.target.value)}
-              className="w-full bg-gray-50 text-gray-900 px-4 py-3 rounded-xl border border-gray-200 focus:border-purple-500 outline-none transition-all"
+              className="w-full bg-gray-50 text-gray-900 px-4 py-3 rounded-xl border border-gray-200 focus:border-orange-500 outline-none transition-all"
               placeholder="#Momentum,#Hedging"
             />
           </div>
           <div className="flex space-x-4 pt-4">
             <button
               type="submit"
-              className="flex-1 bg-purple-600 text-white py-4 rounded-xl font-bold hover:bg-purple-700 transition-all shadow-lg"
+              className="flex-1 bg-orange-600 text-white py-4 rounded-xl font-bold hover:bg-orange-700 transition-all shadow-lg"
             >
               Launch Arena
             </button>

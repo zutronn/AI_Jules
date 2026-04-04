@@ -1,6 +1,7 @@
 fastapi
 uvicorn
 sqlalchemy
+sqlalchemy-libsql
 pydantic
 pydantic-settings
 requests
