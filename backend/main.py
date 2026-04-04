@@ -316,7 +316,7 @@ def create_manual_trade(trade_data: dict, db: Session = Depends(get_db)):
     arena_id = trade_data.get("arena_id")
     agent_id = trade_data.get("agent_id", "human")
     action = trade_data.get("action", "").lower()
-    symbol = trade_data.get("symbol", "")
+    symbol = trade_data.get("symbol", "").strip().upper()
     quantity = trade_data.get("quantity", 0)
     reasoning = trade_data.get("reasoning", "")
 
@@ -360,15 +360,18 @@ def create_manual_trade(trade_data: dict, db: Session = Depends(get_db)):
         print(f"Portfolio update error for manual trade: {e}")
 
     # Also log the reasoning
-    log = models.SystemLog(
-        arena_id=arena_id,
-        level="INFO",
-        source=f"Manual:{agent_id}",
-        message=f"[{action.upper()}] {symbol} x{quantity} @ ${current_price:.2f} — {reasoning}",
-        timestamp=datetime.datetime.utcnow(),
-    )
-    db.add(log)
-    db.commit()
+    try:
+        log = models.SystemLog(
+            arena_id=arena_id,
+            level="INFO",
+            source=f"Manual:{agent_id}",
+            message=f"[{action.upper()}] {symbol} x{quantity} @ ${current_price:.2f} — {reasoning}",
+            timestamp=datetime.datetime.utcnow(),
+        )
+        db.add(log)
+        db.commit()
+    except Exception:
+        db.rollback()
     return {"status": "ok", "message": f"Manual {action} {quantity} {symbol} @ ${current_price:.2f} submitted"}
 
 # --- User Registration Endpoint ---
