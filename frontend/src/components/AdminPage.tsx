@@ -85,9 +85,11 @@ const AdminPage = ({ onBack }: { onBack: () => void }) => {
     }
   };
 
+  const adminHeaders = { 'X-Admin-Key': passwordInput || ADMIN_PASSWORD };
+
   const fetchSettings = async () => {
     try {
-      const res = await axios.get(`${API_BASE_URL}/settings`);
+      const res = await axios.get(`${API_BASE_URL}/settings`, { headers: adminHeaders });
       if (Array.isArray(res.data)) {
         setSettings(res.data);
         const values: Record<string, string> = {};
@@ -111,7 +113,7 @@ const AdminPage = ({ onBack }: { onBack: () => void }) => {
     setSaving(prev => ({ ...prev, [key]: true }));
     setSaveStatus(prev => ({ ...prev, [key]: null }));
     try {
-      await axios.put(`${API_BASE_URL}/settings/${key}`, { value: editValues[key] });
+      await axios.put(`${API_BASE_URL}/settings/${key}`, { value: editValues[key] }, { headers: adminHeaders });
       setSaveStatus(prev => ({ ...prev, [key]: 'success' }));
       // Refresh settings after save
       await fetchSettings();

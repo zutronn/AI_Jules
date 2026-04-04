@@ -3,7 +3,8 @@ import datetime
 import re
 import traceback
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Depends, HTTPException
+import os
+from fastapi import FastAPI, Depends, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -275,8 +276,15 @@ def seed_settings(db: Session):
     except Exception:
         db.rollback()
 
+ADMIN_API_KEY = os.getenv("ADMIN_API_KEY", "lawliet2026")
+
+def verify_admin(x_admin_key: str = Header(None)):
+    """Server-side admin authentication via X-Admin-Key header."""
+    if x_admin_key != ADMIN_API_KEY:
+        raise HTTPException(status_code=401, detail="Unauthorized: invalid or missing X-Admin-Key header")
+
 @app.get("/settings", response_model=List[schemas.Setting])
-def read_settings(db: Session = Depends(get_db)):
+def read_settings(db: Session = Depends(get_db), _: str = Depends(verify_admin)):
     seed_settings(db)
     settings = db.query(models.Setting).all()
     return settings
@@ -291,7 +299,7 @@ SETTING_MIN_VALUES = {
 }
 
 @app.put("/settings/{key}")
-def update_setting(key: str, update: schemas.SettingUpdate, db: Session = Depends(get_db)):
+def update_setting(key: str, update: schemas.SettingUpdate, db: Session = Depends(get_db), _: str = Depends(verify_admin)):
     setting = db.query(models.Setting).filter(models.Setting.key == key).first()
     if not setting:
         raise HTTPException(status_code=404, detail=f"Setting '{key}' not found")
@@ -340,6 +348,18 @@ def create_manual_trade(trade_data: dict, db: Session = Depends(get_db)):
 
     if not current_price or current_price <= 0:
         raise HTTPException(status_code=422, detail=f"Could not determine current market price for '{symbol}'. Trade rejected to prevent portfolio corruption.")
+
+    # Pre-check: reject SELL if user has no holdings (prevents phantom sell records)
+    if action == "sell":
+        pos = db.query(models.Portfolio).filter(
+            models.Portfolio.arena_id == arena_id,
+            models.Portfolio.symbol == symbol
+        ).first()
+        held_qty = pos.quantity if pos and pos.quantity > 0 else 0
+        if held_qty <= 0:
+            raise HTTPException(status_code=400, detail=f"Cannot sell {symbol}: no holdings found in this arena")
+        if quantity > held_qty:
+            raise HTTPException(status_code=400, detail=f"Cannot sell {quantity} {symbol}: only {held_qty} shares held")
 
     trade = models.Trade(
         arena_id=arena_id,
