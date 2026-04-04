@@ -168,7 +168,7 @@ async def create_arena(arena_data: dict, db: Session = Depends(get_db)):
 
 
 @app.get("/trades/{arena_id}")
-def read_trades(arena_id: str, agent_id: Optional[str] = None, skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+def read_trades(arena_id: str, agent_id: Optional[str] = None, skip: int = 0, limit: int = 1000, db: Session = Depends(get_db)):
     query = db.query(models.Trade).filter(models.Trade.arena_id == arena_id)
     if agent_id:
         query = query.filter(models.Trade.agent_id == agent_id)
@@ -275,7 +275,7 @@ def create_manual_trade(trade_data: dict, db: Session = Depends(get_db)):
 
 
 @app.get("/agents/logs/{arena_id}")
-def read_agent_logs(arena_id: str, skip: int = 0, limit: int = 50, db: Session = Depends(get_db)):
+def read_agent_logs(arena_id: str, skip: int = 0, limit: int = 1000, db: Session = Depends(get_db)):
     logs = (
         db.query(models.ReasoningLog)
         .filter(models.ReasoningLog.arena_id == arena_id)
@@ -307,12 +307,17 @@ def read_arena_leaderboard(arena_id: str, db: Session = Depends(get_db)):
         agent_name = ag.name if ag else p.agent_id
         avatar_url = ag.avatar_url if ag else ""
         return_pct = ((p.total_value - STARTING_CAPITAL) / STARTING_CAPITAL) * 100 if p.total_value else 0
+        trade_count = db.query(models.Trade).filter(
+            models.Trade.agent_id == p.agent_id,
+            models.Trade.arena_id == arena_id,
+        ).count()
         leaderboard.append({
             "agent_id": p.agent_id,
             "agent_name": agent_name,
             "avatar_url": avatar_url or "",
             "total_value": round(p.total_value or STARTING_CAPITAL, 2),
             "return_percent": round(return_pct, 2),
+            "trade_count": trade_count,
             "rank": 0,
         })
     leaderboard.sort(key=lambda x: x["return_percent"], reverse=True)
