@@ -257,7 +257,7 @@ DEFAULT_SETTINGS = [
     {"key": "chat_min_interval", "value": "15", "description": "Minimum chat interval in seconds"},
     {"key": "chat_max_interval", "value": "45", "description": "Maximum chat interval in seconds"},
     {"key": "price_update_interval", "value": "3", "description": "Price update interval in seconds"},
-    {"key": "ai_thinking_interval", "value": "7200", "description": "AI thinking interval in seconds (default 5 minutes)"},
+    {"key": "ai_thinking_interval", "value": "7200", "description": "AI thinking interval in seconds (default 2 hours)"},
 ]
 
 def seed_settings(db: Session):
