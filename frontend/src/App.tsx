@@ -9,6 +9,7 @@ import ArenaForm from './components/ArenaForm';
 import AdminPage from './components/AdminPage';
 import ManualTradePage from './components/ManualTradePage';
 import RegisterPage from './components/RegisterPage';
+import FullLogsPage from './components/FullLogsPage';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
@@ -20,7 +21,7 @@ function App() {
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [portfolioHistory, setPortfolioHistory] = useState<any[]>([]);
   const [portfolio, setPortfolio] = useState<any>(null);
-  const [view, setView] = useState<'home' | 'detail' | 'admin' | 'manual-trade' | 'register'>('home');
+  const [view, setView] = useState<'home' | 'detail' | 'admin' | 'manual-trade' | 'register' | 'full-logs'>('home');
   const [aiStatus, setAiStatus] = useState<any>(null);
 
   const fetchArenas = async () => {
@@ -136,6 +137,14 @@ function App() {
     setView('register');
   };
 
+  const handleOpenFullLogs = () => {
+    setView('full-logs');
+  };
+
+  const handleBackToDetail = () => {
+    setView('detail');
+  };
+
   const selectedArena = Array.isArray(arenas) ? arenas.find(a => a.id === selectedArenaId) : undefined;
 
   const agents = aiStatus?.agents || [];
@@ -230,6 +239,8 @@ function App() {
         <ManualTradePage arenaId={selectedArenaId} arenaName={selectedArena?.name || 'Arena'} onBack={() => setView('detail')} />
       ) : view === 'register' ? (
         <RegisterPage arenaId={selectedArenaId || undefined} arenaName={selectedArena?.name} onBack={() => selectedArenaId ? setView('detail') : setView('home')} />
+      ) : view === 'full-logs' ? (
+        <FullLogsPage logs={aiLogs} arenaName={selectedArena?.name || 'Arena'} onBack={handleBackToDetail} />
       ) : view === 'home' ? (
         <main className="max-w-7xl mx-auto px-8 py-12">
           <Hero />
@@ -474,7 +485,7 @@ function App() {
 
                 {/* Model Chats (AI Reasoning Logs) */}
                 <div className="col-span-12 lg:col-span-6 h-[400px]">
-                  <AILogs logs={aiLogs} />
+                  <AILogs logs={aiLogs} onViewFullLogs={handleOpenFullLogs} />
                 </div>
               </div>
 
