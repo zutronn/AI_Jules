@@ -135,7 +135,8 @@ async def trading_health_check(db: Session = Depends(get_db)):
 
         task_running = arena.id in running_tasks and not running_tasks[arena.id].done()
         last_cycle = last_successful_cycle.get(arena.id)
-        effective_threshold = max(WATCHDOG_STALE_THRESHOLD, arena.cycle_time + 120)
+        actual_cycle = _get_setting_value(db, "ai_thinking_interval", arena.cycle_time)
+        effective_threshold = max(WATCHDOG_STALE_THRESHOLD, actual_cycle + 120)
         cycle_stale = (
             last_cycle is None
             or (now - last_cycle).total_seconds() > effective_threshold
@@ -266,7 +267,10 @@ def seed_settings(db: Session):
         existing = db.query(models.Setting).filter(models.Setting.key == s["key"]).first()
         if not existing:
             db.add(models.Setting(**s))
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
 
 @app.get("/settings", response_model=List[schemas.Setting])
 def read_settings(db: Session = Depends(get_db)):
@@ -301,27 +305,41 @@ def create_manual_trade(trade_data: dict, db: Session = Depends(get_db)):
     if not symbol or quantity <= 0:
         raise HTTPException(status_code=400, detail="Symbol and positive quantity are required")
 
+    # Look up current market price for the symbol
+    try:
+        from agents.orchestrator import stock_service
+        price_data = stock_service.get_realtime_data(symbol)
+        current_price = price_data.get("price", 0) if price_data else 0
+    except Exception:
+        current_price = 0  # Fallback if price lookup fails
+
     trade = models.Trade(
         arena_id=arena_id,
         symbol=symbol,
         side=action.upper(),
-        price=0,  # Will be filled by the trading engine with current market price
+        price=current_price,
         amount=quantity,
         timestamp=datetime.datetime.utcnow(),
     )
     db.add(trade)
+
+    # Update portfolio positions
+    try:
+        _update_portfolio(db, trade)
+    except Exception as e:
+        print(f"Portfolio update error for manual trade: {e}")
 
     # Also log the reasoning
     log = models.SystemLog(
         arena_id=arena_id,
         level="INFO",
         source=f"Manual:{agent_id}",
-        message=f"[{action.upper()}] {symbol} x{quantity} — {reasoning}",
+        message=f"[{action.upper()}] {symbol} x{quantity} @ ${current_price:.2f} — {reasoning}",
         timestamp=datetime.datetime.utcnow(),
     )
     db.add(log)
     db.commit()
-    return {"status": "ok", "message": f"Manual {action} {quantity} {symbol} submitted"}
+    return {"status": "ok", "message": f"Manual {action} {quantity} {symbol} @ ${current_price:.2f} submitted"}
 
 # --- User Registration Endpoint ---
 
@@ -707,7 +725,8 @@ async def trading_watchdog():
 
                 # Check 4: Task is running but stale (no successful cycle recently)
                 else:
-                    effective_threshold = max(WATCHDOG_STALE_THRESHOLD, arena.cycle_time + 120)  # cycle_time + 2 min buffer
+                    actual_cycle = _get_setting_value(db, "ai_thinking_interval", arena.cycle_time)
+                    effective_threshold = max(WATCHDOG_STALE_THRESHOLD, actual_cycle + 120)  # ai_thinking_interval + 2 min buffer
                     elapsed = (now - last_successful_cycle[arena.id]).total_seconds()
                     if elapsed > effective_threshold:
                         needs_restart = True
