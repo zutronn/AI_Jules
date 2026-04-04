@@ -493,6 +493,7 @@ def _update_portfolio(db: Session, agent_id: str, arena_id: str, symbol: str, si
         holding.pnl += (price - holding.avg_cost) * actual_sell
         holding.quantity -= actual_sell
         holding.current_value = holding.quantity * price
+    db.flush()
     all_holdings = db.query(models.Holding).filter(models.Holding.portfolio_id == portfolio.id).all()
     holdings_value = sum(h.current_value for h in all_holdings if h.quantity > 0)
     portfolio.total_value = portfolio.cash + holdings_value
