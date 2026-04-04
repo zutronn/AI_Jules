@@ -1,9 +1,11 @@
 import asyncio
 import datetime
+import re
 import traceback
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from typing import List, Dict, Optional
 from . import models, schemas, database
@@ -410,6 +412,93 @@ def read_ai_responses(arena_id: Optional[int] = None, skip: int = 0, limit: int 
         query = query.filter(models.AIResponse.arena_id == arena_id)
     return query.order_by(models.AIResponse.timestamp.desc()).offset(skip).limit(limit).all()
 
+@app.get("/arenas/{arena_id}/leaderboard")
+def read_arena_leaderboard(arena_id: int, db: Session = Depends(get_db)):
+    """Get per-agent leaderboard for an arena, computed from AI responses and trades."""
+
+    # Get distinct agent names that have responded in this arena
+    agent_rows = (
+        db.query(models.AIResponse.agent_name)
+        .filter(models.AIResponse.arena_id == arena_id)
+        .distinct()
+        .all()
+    )
+    agent_names = [row[0] for row in agent_rows if row[0]]
+
+    STARTING_CAPITAL = 100_000.0
+    leaderboard = []
+
+    for agent_name in agent_names:
+        # Count trades attributed to this agent (via AI responses that led to trades)
+        # Since trades don't store agent_name, count AI responses as a proxy for activity
+        response_count = (
+            db.query(func.count(models.AIResponse.id))
+            .filter(
+                models.AIResponse.arena_id == arena_id,
+                models.AIResponse.agent_name == agent_name,
+            )
+            .scalar()
+        ) or 0
+
+        # Count actual BUY/SELL trades (not HOLD) from this agent's responses
+        # Parse decision from response text to count real trades
+        responses = (
+            db.query(models.AIResponse.response)
+            .filter(
+                models.AIResponse.arena_id == arena_id,
+                models.AIResponse.agent_name == agent_name,
+            )
+            .all()
+        )
+        trade_count = sum(
+            1 for r in responses
+            if r[0] and (r[0].upper().startswith("[BUY") or r[0].upper().startswith("[SELL"))
+        )
+
+        # Compute total value from portfolio positions
+        # Each agent's portfolio value = cash + holdings
+        # For simplicity, use the agent's trade activity to estimate performance
+        # Look at the response text for portfolio value mentions
+        total_value = STARTING_CAPITAL
+        return_percent = 0.0
+
+        # Try to extract portfolio value from the most recent response
+        latest_response = (
+            db.query(models.AIResponse.response)
+            .filter(
+                models.AIResponse.arena_id == arena_id,
+                models.AIResponse.agent_name == agent_name,
+            )
+            .order_by(models.AIResponse.timestamp.desc())
+            .first()
+        )
+        if latest_response and latest_response[0]:
+            # Extract "total value of $X" or "total value: $X" or "total portfolio value of $X"
+            val_match = re.search(
+                r'total (?:portfolio )?value (?:of |is )?\$?([\d,]+(?:\.\d+)?)',
+                latest_response[0],
+                re.IGNORECASE,
+            )
+            if val_match:
+                try:
+                    total_value = float(val_match.group(1).replace(',', ''))
+                    return_percent = ((total_value - STARTING_CAPITAL) / STARTING_CAPITAL) * 100
+                except (ValueError, ZeroDivisionError):
+                    pass
+
+        leaderboard.append({
+            "agent_id": agent_name.lower().replace(' ', '_'),
+            "agent_name": agent_name,
+            "return_percent": round(return_percent, 2),
+            "total_value": round(total_value, 2),
+            "trade_count": trade_count,
+        })
+
+    # Sort by return_percent descending
+    leaderboard.sort(key=lambda x: x["return_percent"], reverse=True)
+    return leaderboard
+
+
 @app.get("/portfolio")
 def read_portfolio(arena_id: Optional[int] = None, db: Session = Depends(get_db)):
     """Get portfolio positions for an arena, with computed P&L."""
@@ -623,7 +712,7 @@ def _get_setting_value(db: Session, key: str, default: int) -> int:
             return max(val, 10)
     except Exception:
         pass
-    return default
+    return max(default, 10)
 
 
 async def run_autonomous_trading(arena_id: int):
