@@ -103,7 +103,7 @@ def market_status():
 
     # Calculate next market open
     next_open = now_et.replace(hour=9, minute=30, second=0, microsecond=0)
-    if market_open or now_et >= next_open.replace(hour=16):
+    if market_open or now_et >= now_et.replace(hour=16, minute=0, second=0, microsecond=0):
         # If market is open or past close, next open is tomorrow (or next weekday)
         next_open += datetime.timedelta(days=1)
     while next_open.weekday() > 4 or (next_open.month, next_open.day) in US_MARKET_HOLIDAYS_2026:
