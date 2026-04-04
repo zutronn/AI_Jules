@@ -252,15 +252,18 @@ def create_manual_trade(trade_data: dict, db: Session = Depends(get_db)):
         reasoning=reasoning, created_at=datetime.datetime.utcnow(),
     )
     db.add(trade)
+    db.flush()  # Ensure trade is written before portfolio update
     try:
         _update_portfolio(db, agent_id, arena_id, symbol, action, quantity, current_price, total_value)
         # Trade + portfolio update committed together inside _update_portfolio
     except Exception as e:
-        db.rollback()
         print(f"Portfolio update error for manual trade: {e}")
-        # Still commit the trade on its own so we don't lose the record
-        db.add(trade)
-        db.commit()
+        # On Turso, statements auto-commit so the trade is already persisted.
+        # On regular SQLite, flush already sent the INSERT. Just commit to finalize.
+        try:
+            db.commit()
+        except Exception:
+            db.rollback()
     try:
         log = models.ReasoningLog(
             agent_id=agent_id, arena_id=arena_id,
