@@ -252,8 +252,8 @@ const ManualTradePage = ({ arenaId, arenaName, onBack }: ManualTradePageProps) =
                   {recentTrades.map((trade: any, i: number) => (
                     <div key={i} className="flex items-center justify-between text-xs py-2 border-b border-gray-50 last:border-0">
                       <div>
-                        <span className={`font-bold ${trade.action === 'buy' ? 'text-green-600' : 'text-red-600'}`}>
-                          {(trade.action || '').toUpperCase()}
+                        <span className={`font-bold ${(trade.side || trade.action) === 'buy' ? 'text-green-600' : 'text-red-600'}`}>
+                          {(trade.side || trade.action || '').toUpperCase()}
                         </span>
                         <span className="text-gray-700 font-bold ml-1">{trade.symbol}</span>
                         <span className="text-gray-400 ml-1">x{trade.quantity}</span>
