@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Settings, Clock, Zap, RefreshCw, Save, ChevronLeft } from 'lucide-react';
+import { Settings, Clock, Zap, RefreshCw, Save, ChevronLeft, Lock, Eye, EyeOff } from 'lucide-react';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || 'changeme';
 
 interface SettingItem {
   key: string;
@@ -63,11 +64,26 @@ const formatInterval = (seconds: number): string => {
 };
 
 const AdminPage = ({ onBack }: { onBack: () => void }) => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [passwordInput, setPasswordInput] = useState('');
+  const [passwordError, setPasswordError] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [settings, setSettings] = useState<SettingItem[]>([]);
   const [editValues, setEditValues] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [saveStatus, setSaveStatus] = useState<Record<string, 'success' | 'error' | null>>({});
   const [loading, setLoading] = useState(true);
+
+  const handlePasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passwordInput === ADMIN_PASSWORD) {
+      setIsAuthenticated(true);
+      setPasswordError(false);
+    } else {
+      setPasswordError(true);
+      setPasswordInput('');
+    }
+  };
 
   const fetchSettings = async () => {
     try {
@@ -122,6 +138,60 @@ const AdminPage = ({ onBack }: { onBack: () => void }) => {
     { label: '2 hours', value: 7200 },
     { label: '6 hours', value: 21600 },
   ];
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="max-w-md w-full mx-4">
+          <button
+            onClick={onBack}
+            className="text-gray-500 font-bold flex items-center text-sm hover:text-orange-600 transition-colors mb-8"
+          >
+            <ChevronLeft className="w-4 h-4 mr-1" /> Back to Trading Hub
+          </button>
+
+          <div className="bg-white rounded-3xl border border-gray-100 p-10 shadow-sm text-center">
+            <div className="w-16 h-16 bg-orange-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
+              <Lock className="w-8 h-8 text-orange-600" />
+            </div>
+            <h1 className="text-2xl font-black text-gray-900 mb-2">Admin Access</h1>
+            <p className="text-gray-500 text-sm mb-8">Enter the admin password to access settings.</p>
+
+            <form onSubmit={handlePasswordSubmit} className="space-y-4">
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={passwordInput}
+                  onChange={(e) => { setPasswordInput(e.target.value); setPasswordError(false); }}
+                  placeholder="Enter password"
+                  className={`w-full px-4 py-3 border ${passwordError ? 'border-red-400 ring-2 ring-red-100' : 'border-gray-200'} rounded-xl text-sm font-bold focus:outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 pr-12`}
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+
+              {passwordError && (
+                <p className="text-red-500 text-xs font-bold">Incorrect password. Please try again.</p>
+              )}
+
+              <button
+                type="submit"
+                className="w-full bg-orange-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-orange-200 hover:bg-orange-700 transition-all"
+              >
+                Unlock Admin Panel
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">

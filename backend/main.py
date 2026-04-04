@@ -510,6 +510,17 @@ def run_cycle(db: Session, arena_id: int):
         db.rollback()
         print(f"Post-cycle monitoring error for Arena {arena_id}: {e}")
 
+def _get_setting_value(db: Session, key: str, default: int) -> int:
+    """Read a setting from the database, returning default if not found or invalid."""
+    try:
+        setting = db.query(models.Setting).filter(models.Setting.key == key).first()
+        if setting and setting.value:
+            return int(setting.value)
+    except (ValueError, TypeError):
+        pass
+    return default
+
+
 async def run_autonomous_trading(arena_id: int):
     """
     Main trading loop for an arena. Runs indefinitely with:
@@ -517,6 +528,7 @@ async def run_autonomous_trading(arena_id: int):
     - Exponential backoff on repeated failures (caps at 5 min)
     - Logs errors to DB for visibility
     - Updates last_successful_cycle for watchdog monitoring
+    - Reads ai_thinking_interval from settings DB on each cycle
     - Never exits unless arena is deactivated or task is cancelled
     """
     print(f"Starting autonomous trading cycle for Arena {arena_id}...")
@@ -533,12 +545,16 @@ async def run_autonomous_trading(arena_id: int):
                 break
 
             run_cycle(db, arena_id)
-            cycle_time = arena.cycle_time
+
+            # Read the AI thinking interval from the settings table (admin-configurable)
+            # Falls back to arena.cycle_time if the setting doesn't exist
+            cycle_time = _get_setting_value(db, "ai_thinking_interval", arena.cycle_time)
 
             # Mark successful cycle for watchdog
             last_successful_cycle[arena_id] = datetime.datetime.utcnow()
             consecutive_errors = 0  # Reset error counter on success
 
+            print(f"Arena {arena_id}: cycle complete, sleeping {cycle_time}s (from settings)")
             db.close()
             db = None
             await asyncio.sleep(cycle_time)
