@@ -307,7 +307,6 @@ def create_manual_trade(trade_data: dict, db: Session = Depends(get_db)):
 
     # Look up current market price for the symbol
     try:
-        from agents.orchestrator import stock_service
         price_data = stock_service.get_realtime_data(symbol)
         current_price = price_data.get("price", 0) if price_data else 0
     except Exception:
@@ -325,6 +324,7 @@ def create_manual_trade(trade_data: dict, db: Session = Depends(get_db)):
         timestamp=datetime.datetime.utcnow(),
     )
     db.add(trade)
+    db.commit()  # Persist trade first so it survives portfolio update failures
 
     # Update portfolio positions
     try:
