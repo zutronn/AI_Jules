@@ -74,7 +74,18 @@ const ManualTradePage = ({ arenaId, arenaName, onBack }: ManualTradePageProps) =
       setQuantity('');
       setReasoning('');
     } catch (error: any) {
-      const msg = error.response?.data?.detail || 'Failed to submit trade. Please try again.';
+      const detail = error.response?.data?.detail;
+      let msg: string;
+      if (typeof detail === 'string') {
+        msg = detail;
+      } else if (Array.isArray(detail)) {
+        // Pydantic validation errors return an array of {msg, loc, type, input}
+        msg = detail.map((d: any) => typeof d === 'string' ? d : (d.msg || JSON.stringify(d))).join('; ');
+      } else if (detail && typeof detail === 'object') {
+        msg = detail.msg || detail.message || JSON.stringify(detail);
+      } else {
+        msg = 'Failed to submit trade. Please try again.';
+      }
       setSubmitResult({ success: false, message: msg });
     } finally {
       setSubmitting(false);
