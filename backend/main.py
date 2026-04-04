@@ -1,273 +1,36 @@
 import asyncio
 import datetime
+import json
+import random
 import re
 import traceback
 from contextlib import asynccontextmanager
 import os
 from fastapi import FastAPI, Depends, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import func
+from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 from typing import List, Dict, Optional
-from . import models, schemas, database
-from .agents.orchestrator import Orchestrator
-from .agents.monitoring import MonitoringAgent
-from .agents.self_improvement import SelfImprovementAgent
+from . import models, database
+from .agents.prompts import build_system_prompt, build_context_prompt
 from .services.stock_data import StockDataService
 
-# Dictionary to keep track of running tasks for each arena
-running_tasks: Dict[int, asyncio.Task] = {}
+running_tasks: Dict[str, asyncio.Task] = {}
+last_successful_cycle: Dict[str, datetime.datetime] = {}
+WATCHDOG_STALE_THRESHOLD = 300
+ADMIN_API_KEY = os.getenv("ADMIN_API_KEY", "lawliet2026")
+STARTING_CAPITAL = 100_000.0
 
-# Track last successful cycle per arena for watchdog
-last_successful_cycle: Dict[int, datetime.datetime] = {}
-
-# Maximum time (seconds) before watchdog considers a trading loop stale
-WATCHDOG_STALE_THRESHOLD = 300  # 5 minutes
-
-def seed_data():
-    db = database.SessionLocal()
-    if db.query(models.Arena).count() == 0:
-        arenas = [
-            models.Arena(
-                name="AI PMs Storm Cup",
-                tickers="DULL,GDX,SIL",
-                tags="#Precious Metals,#Momentum,#Hedging",
-                description="Live AI tradings by theme & strategy.",
-                rule="Live Trading Cup 2024",
-                prompt_text="Long/short strategies based on momentum and trend-following across multiple timeframes."
-            ),
-            models.Arena(
-                name="Classic",
-                tickers="BTC,ETH,SOL",
-                tags="#Balance,#Quality",
-                description="Jump in and copy-trade whoever's winning.",
-                rule="Long-term Value",
-                prompt_text="Identify undervalued assets based on fundamentals and technical analysis."
-            ),
-            models.Arena(
-                name="Gemini 3 PK",
-                tickers="TSLA,NVDA,AMD",
-                tags="#PK,#Latest Models",
-                description="Explore arenas. Copy-trade best models.",
-                rule="Short-term Scalping",
-                prompt_text="High-frequency trading signals based on order flow and volatility."
-            ),
-            models.Arena(
-                name="AI Stock",
-                tickers="AMZN,META,NFLX",
-                tags="#AI,#Growth,#Tech",
-                description="Browse live AI tradings.",
-                rule="Trend Following",
-                prompt_text="Analyze market trends and sentiments to identify growth opportunities."
-            )
-        ]
-        db.add_all(arenas)
-        db.commit()
-    db.close()
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Startup: Initialize DB and start autonomous trading for existing active arenas
-    database.init_db()
-    seed_data()
-    db = database.SessionLocal()
-    seed_settings(db)  # Ensure settings exist before trading loops start
-    arenas = db.query(models.Arena).filter(models.Arena.is_active == 1).all()
-    for arena in arenas:
-        running_tasks[arena.id] = asyncio.create_task(run_autonomous_trading(arena.id))
-        last_successful_cycle[arena.id] = datetime.datetime.utcnow()  # Grace period for first cycle
-    db.close()
-
-    # Start the watchdog that monitors and restarts stale trading loops
-    watchdog_task = asyncio.create_task(trading_watchdog())
-
-    yield
-
-    # Shutdown: Cancel watchdog and all trading tasks
-    watchdog_task.cancel()
-    for task in running_tasks.values():
-        task.cancel()
-
-app = FastAPI(title="ROCKALPHA API", lifespan=lifespan)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-stock_service = StockDataService()
-
-# Dependency
-def get_db():
-    db = database.SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-@app.get("/health")
-def health_check():
-    """Basic health check — confirms the API process is alive."""
-    return {"status": "healthy"}
-
-@app.get("/health/trading")
-async def trading_health_check(db: Session = Depends(get_db)):
-    """
-    Deep health check — verifies trading loops are active and producing trades.
-    Returns per-arena status with last trade time and staleness detection.
-    """
-    arenas = db.query(models.Arena).filter(models.Arena.is_active == 1).all()
-    results = []
-    now = datetime.datetime.utcnow()
-
-    for arena in arenas:
-        last_trade = (
-            db.query(models.Trade)
-            .filter(models.Trade.arena_id == arena.id)
-            .order_by(models.Trade.timestamp.desc())
-            .first()
-        )
-        last_log = (
-            db.query(models.SystemLog)
-            .filter(models.SystemLog.arena_id == arena.id)
-            .order_by(models.SystemLog.timestamp.desc())
-            .first()
-        )
-
-        task_running = arena.id in running_tasks and not running_tasks[arena.id].done()
-        last_cycle = last_successful_cycle.get(arena.id)
-        actual_cycle = _get_setting_value(db, "ai_thinking_interval", arena.cycle_time)
-        effective_threshold = max(WATCHDOG_STALE_THRESHOLD, actual_cycle + 120)
-        cycle_stale = (
-            last_cycle is None
-            or (now - last_cycle).total_seconds() > effective_threshold
-        )
-
-        status = "healthy"
-        if not task_running:
-            status = "down"
-        elif cycle_stale:
-            status = "degraded"
-        elif last_trade and (now - last_trade.timestamp).total_seconds() > 86400:
-            status = "degraded"  # No trade in 24h
-
-        results.append({
-            "arena_id": arena.id,
-            "arena_name": arena.name,
-            "status": status,
-            "task_running": task_running,
-            "last_trade": last_trade.timestamp.isoformat() if last_trade else None,
-            "last_log": last_log.timestamp.isoformat() if last_log else None,
-            "last_cycle": last_cycle.isoformat() if last_cycle else None,
-            "cycle_stale": cycle_stale,
-        })
-
-    all_healthy = all(r["status"] == "healthy" for r in results)
-    return {
-        "overall": "healthy" if all_healthy else "degraded",
-        "arenas": results,
-        "active_tasks": len([t for t in running_tasks.values() if not t.done()]),
-        "total_arenas": len(arenas),
-        "checked_at": now.isoformat(),
-    }
-
-@app.post("/trading/restart")
-async def restart_trading(arena_id: Optional[int] = None, db: Session = Depends(get_db)):
-    """
-    Force-restart trading loop(s). If arena_id is provided, restart only that arena.
-    Otherwise restart all active arenas.
-    """
-    restarted = []
-
-    if arena_id is not None:
-        arenas = db.query(models.Arena).filter(
-            models.Arena.id == arena_id, models.Arena.is_active == 1
-        ).all()
-    else:
-        arenas = db.query(models.Arena).filter(models.Arena.is_active == 1).all()
-
-    for arena in arenas:
-        # Cancel existing task if running
-        if arena.id in running_tasks:
-            running_tasks[arena.id].cancel()
-            del running_tasks[arena.id]  # Remove immediately to prevent watchdog from seeing a done() task
-
-        # Start fresh task and give watchdog a grace period
-        running_tasks[arena.id] = asyncio.create_task(run_autonomous_trading(arena.id))
-        last_successful_cycle[arena.id] = datetime.datetime.utcnow()  # Grace period for watchdog
-        restarted.append(arena.id)
-
-        # Log the restart
-        log = models.SystemLog(
-            arena_id=arena.id,
-            level="WARNING",
-            source="TradingRestart",
-            message=f"Trading loop manually restarted for Arena {arena.id} ({arena.name})"
-        )
-        db.add(log)
-
-    db.commit()
-    return {"restarted_arenas": restarted, "count": len(restarted)}
-
-# --- Arena Endpoints ---
-
-@app.get("/arenas", response_model=List[schemas.Arena])
-def read_arenas(db: Session = Depends(get_db)):
-    return db.query(models.Arena).all()
-
-@app.post("/arenas", response_model=schemas.Arena)
-async def create_arena(arena: schemas.ArenaCreate, db: Session = Depends(get_db)):
-    db_arena = models.Arena(**arena.dict())
-    db.add(db_arena)
-    db.commit()
-    db.refresh(db_arena)
-
-    if db_arena.is_active:
-        running_tasks[db_arena.id] = asyncio.create_task(run_autonomous_trading(db_arena.id))
-        last_successful_cycle[db_arena.id] = datetime.datetime.utcnow()  # Grace period for watchdog
-
-    return db_arena
-
-@app.patch("/arenas/{arena_id}", response_model=schemas.Arena)
-async def update_arena(arena_id: int, arena_update: schemas.ArenaUpdate, db: Session = Depends(get_db)):
-    db_arena = db.query(models.Arena).filter(models.Arena.id == arena_id).first()
-    if not db_arena:
-        raise HTTPException(status_code=404, detail="Arena not found")
-
-    update_data = arena_update.dict(exclude_unset=True)
-    for key, value in update_data.items():
-        setattr(db_arena, key, value)
-
-    db.commit()
-    db.refresh(db_arena)
-
-    # Update running task
-    if arena_id in running_tasks:
-        running_tasks[arena_id].cancel()
-        del running_tasks[arena_id]
-
-    if db_arena.is_active:
-        running_tasks[arena_id] = asyncio.create_task(run_autonomous_trading(arena_id))
-        last_successful_cycle[arena_id] = datetime.datetime.utcnow()  # Grace period for watchdog
-
-    return db_arena
-
-# --- Settings Endpoints ---
-
-DEFAULT_SETTINGS = [
-    {"key": "trading_cycle_seconds", "value": "10", "description": "Trading cycle interval in seconds (10-3600)"},
-    {"key": "chat_min_interval", "value": "15", "description": "Minimum chat interval in seconds"},
-    {"key": "chat_max_interval", "value": "45", "description": "Maximum chat interval in seconds"},
-    {"key": "price_update_interval", "value": "3", "description": "Price update interval in seconds"},
-    {"key": "ai_thinking_interval", "value": "7200", "description": "AI thinking interval in seconds (default 2 hours)"},
-]
 
 def seed_settings(db: Session):
-    """Seed default settings if they don't exist."""
-    for s in DEFAULT_SETTINGS:
+    defaults = [
+        {"key": "trading_cycle_seconds", "value": "10", "description": "Trading cycle interval in seconds (10-3600)"},
+        {"key": "chat_min_interval", "value": "15", "description": "Minimum chat interval in seconds"},
+        {"key": "chat_max_interval", "value": "45", "description": "Maximum chat interval in seconds"},
+        {"key": "price_update_interval", "value": "3", "description": "Price update interval in seconds"},
+        {"key": "ai_thinking_interval", "value": "7200", "description": "AI thinking interval in seconds (default 2 hours)"},
+    ]
+    for s in defaults:
         existing = db.query(models.Setting).filter(models.Setting.key == s["key"]).first()
         if not existing:
             db.add(models.Setting(**s))
@@ -276,58 +39,169 @@ def seed_settings(db: Session):
     except Exception:
         db.rollback()
 
-ADMIN_API_KEY = os.getenv("ADMIN_API_KEY", "lawliet2026")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    database.init_db()
+    db = database.SessionLocal()
+    seed_settings(db)
+    arenas = db.query(models.Arena).all()
+    for arena in arenas:
+        running_tasks[arena.id] = asyncio.create_task(run_autonomous_trading(arena.id))
+        last_successful_cycle[arena.id] = datetime.datetime.utcnow()
+    db.close()
+    watchdog_task = asyncio.create_task(trading_watchdog())
+    yield
+    watchdog_task.cancel()
+    for task in running_tasks.values():
+        task.cancel()
+
+
+app = FastAPI(title="Lawliet Labs API", lifespan=lifespan)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+stock_service = StockDataService()
+
+
+def get_db():
+    db = database.SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
 
 def verify_admin(x_admin_key: str = Header(None)):
-    """Server-side admin authentication via X-Admin-Key header."""
     if x_admin_key != ADMIN_API_KEY:
         raise HTTPException(status_code=401, detail="Unauthorized: invalid or missing X-Admin-Key header")
 
-@app.get("/settings", response_model=List[schemas.Setting])
-def read_settings(db: Session = Depends(get_db), _: str = Depends(verify_admin)):
-    seed_settings(db)
-    settings = db.query(models.Setting).all()
-    return settings
 
-# Minimum allowed values for interval settings (in seconds)
-SETTING_MIN_VALUES = {
-    "trading_cycle_seconds": 10,
-    "chat_min_interval": 1,
-    "chat_max_interval": 1,
-    "price_update_interval": 1,
-    "ai_thinking_interval": 60,
-}
+@app.get("/health")
+def health_check():
+    return {"status": "healthy"}
 
-@app.put("/settings/{key}")
-def update_setting(key: str, update: schemas.SettingUpdate, db: Session = Depends(get_db), _: str = Depends(verify_admin)):
-    setting = db.query(models.Setting).filter(models.Setting.key == key).first()
-    if not setting:
-        raise HTTPException(status_code=404, detail=f"Setting '{key}' not found")
-    # Validate numeric interval settings have a safe minimum
-    if key in SETTING_MIN_VALUES:
-        try:
-            val = int(update.value)
-        except (ValueError, TypeError):
-            raise HTTPException(status_code=400, detail=f"Setting '{key}' must be a valid integer")
-        if val < SETTING_MIN_VALUES[key]:
-            raise HTTPException(status_code=400, detail=f"Setting '{key}' must be >= {SETTING_MIN_VALUES[key]} seconds")
-    setting.value = update.value
+
+@app.get("/ai/status")
+def ai_status(db: Session = Depends(get_db)):
+    agents_db = db.query(models.Agent).all()
+    agent_list = []
+    connected_count = 0
+    for agent in agents_db:
+        latest_log = (
+            db.query(models.ReasoningLog)
+            .filter(models.ReasoningLog.agent_id == agent.id)
+            .order_by(models.ReasoningLog.created_at.desc())
+            .first()
+        )
+        now = datetime.datetime.utcnow()
+        connected = False
+        last_response_time = None
+        if latest_log and latest_log.created_at:
+            last_response_time = latest_log.created_at.isoformat()
+            if (now - latest_log.created_at).total_seconds() < 86400:
+                connected = True
+                connected_count += 1
+        agent_list.append({
+            "agent_id": agent.id,
+            "agent_name": agent.name,
+            "connected": connected,
+            "last_response_time": last_response_time,
+            "last_error": None,
+            "response_latency_ms": 0,
+        })
+    return {
+        "agents": agent_list,
+        "total_agents": len(agent_list),
+        "connected_count": connected_count,
+        "disconnected_count": len(agent_list) - connected_count,
+    }
+
+
+@app.get("/arenas")
+def read_arenas(db: Session = Depends(get_db)):
+    arenas = db.query(models.Arena).all()
+    result = []
+    for arena in arenas:
+        tickers = arena.tickers.split(",") if arena.tickers else []
+        tags = arena.tags.split(",") if arena.tags else []
+        result.append({
+            "id": arena.id,
+            "name": arena.name,
+            "description": arena.description or "",
+            "tickers": [t.strip() for t in tickers],
+            "rules": arena.rules or "",
+            "prompt": arena.prompt or "",
+            "tags": [t.strip() for t in tags],
+        })
+    return result
+
+
+@app.post("/arenas")
+def create_arena(arena_data: dict, db: Session = Depends(get_db)):
+    arena_id = arena_data.get("id") or arena_data.get("name", "").lower().replace(" ", "-")
+    tickers = arena_data.get("tickers", "")
+    if isinstance(tickers, list):
+        tickers = ",".join(tickers)
+    tags = arena_data.get("tags", "")
+    if isinstance(tags, list):
+        tags = ",".join(tags)
+    db_arena = models.Arena(
+        id=arena_id,
+        name=arena_data.get("name", ""),
+        description=arena_data.get("description", ""),
+        tickers=tickers,
+        rules=arena_data.get("rules", ""),
+        prompt=arena_data.get("prompt", ""),
+        tags=tags,
+    )
+    db.add(db_arena)
     db.commit()
-    db.refresh(setting)
-    return {"key": setting.key, "value": setting.value, "description": setting.description}
+    db.refresh(db_arena)
+    running_tasks[db_arena.id] = asyncio.create_task(run_autonomous_trading(db_arena.id))
+    last_successful_cycle[db_arena.id] = datetime.datetime.utcnow()
+    return {"id": db_arena.id, "name": db_arena.name}
 
-# --- Manual Trading Endpoint ---
+
+@app.get("/trades/{arena_id}")
+def read_trades(arena_id: str, agent_id: Optional[str] = None, skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    query = db.query(models.Trade).filter(models.Trade.arena_id == arena_id)
+    if agent_id:
+        query = query.filter(models.Trade.agent_id == agent_id)
+    trades = query.order_by(models.Trade.created_at.desc()).offset(skip).limit(limit).all()
+    agent_cache: Dict[str, str] = {}
+    result = []
+    for t in trades:
+        if t.agent_id not in agent_cache:
+            ag = db.query(models.Agent).filter(models.Agent.id == t.agent_id).first()
+            agent_cache[t.agent_id] = ag.name if ag else t.agent_id
+        result.append({
+            "id": t.id,
+            "agent_id": t.agent_id,
+            "agent_name": agent_cache[t.agent_id],
+            "symbol": t.symbol,
+            "side": t.side,
+            "quantity": t.quantity,
+            "price": t.price,
+            "total_value": t.total_value,
+            "reasoning": t.reasoning or "",
+            "created_at": t.created_at.isoformat() if t.created_at else None,
+        })
+    return result
+
 
 @app.post("/trades/manual")
 def create_manual_trade(trade_data: dict, db: Session = Depends(get_db)):
-    """Submit a manual trade to compete with AI agents."""
     arena_id = trade_data.get("arena_id")
     agent_id = trade_data.get("agent_id", "human")
     action = trade_data.get("action", "").lower()
     symbol = trade_data.get("symbol", "").strip().upper()
     quantity = trade_data.get("quantity", 0)
     reasoning = trade_data.get("reasoning", "")
-
     if not arena_id:
         raise HTTPException(status_code=400, detail="arena_id is required")
     if action not in ("buy", "sell"):
@@ -338,55 +212,48 @@ def create_manual_trade(trade_data: dict, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="quantity must be a number")
     if not symbol or quantity <= 0:
         raise HTTPException(status_code=400, detail="Symbol and positive quantity are required")
-
-    # Look up current market price for the symbol
     try:
         price_data = stock_service.get_realtime_data(symbol)
         current_price = price_data.get("price", 0) if price_data else 0
     except Exception:
         current_price = 0
-
     if not current_price or current_price <= 0:
-        raise HTTPException(status_code=422, detail=f"Could not determine current market price for '{symbol}'. Trade rejected to prevent portfolio corruption.")
-
-    # Pre-check: reject SELL if user has no holdings (prevents phantom sell records)
+        raise HTTPException(status_code=422, detail=f"Could not determine current market price for '{symbol}'.")
     if action == "sell":
-        pos = db.query(models.Portfolio).filter(
+        portfolio = db.query(models.Portfolio).filter(
+            models.Portfolio.agent_id == agent_id,
             models.Portfolio.arena_id == arena_id,
-            models.Portfolio.symbol == symbol
         ).first()
-        held_qty = pos.quantity if pos and pos.quantity > 0 else 0
+        if portfolio:
+            holding = db.query(models.Holding).filter(
+                models.Holding.portfolio_id == portfolio.id,
+                models.Holding.symbol == symbol,
+            ).first()
+            held_qty = holding.quantity if holding and holding.quantity > 0 else 0
+        else:
+            held_qty = 0
         if held_qty <= 0:
-            raise HTTPException(status_code=400, detail=f"Cannot sell {symbol}: no holdings found in this arena")
+            raise HTTPException(status_code=400, detail=f"Cannot sell {symbol}: no holdings found")
         if quantity > held_qty:
             raise HTTPException(status_code=400, detail=f"Cannot sell {quantity} {symbol}: only {held_qty} shares held")
-
+    total_value = current_price * quantity
     trade = models.Trade(
-        arena_id=arena_id,
-        symbol=symbol,
-        side=action.upper(),
-        price=current_price,
-        amount=quantity,
-        timestamp=datetime.datetime.utcnow(),
+        agent_id=agent_id, arena_id=arena_id, symbol=symbol, side=action,
+        price=current_price, quantity=quantity, total_value=total_value,
+        reasoning=reasoning, created_at=datetime.datetime.utcnow(),
     )
     db.add(trade)
-    db.commit()  # Persist trade first so it survives portfolio update failures
-
-    # Update portfolio positions
+    db.commit()
     try:
-        _update_portfolio(db, trade)
+        _update_portfolio(db, agent_id, arena_id, symbol, action, quantity, current_price, total_value)
     except Exception as e:
         db.rollback()
         print(f"Portfolio update error for manual trade: {e}")
-
-    # Also log the reasoning
     try:
-        log = models.SystemLog(
-            arena_id=arena_id,
-            level="INFO",
-            source=f"Manual:{agent_id}",
-            message=f"[{action.upper()}] {symbol} x{quantity} @ ${current_price:.2f} — {reasoning}",
-            timestamp=datetime.datetime.utcnow(),
+        log = models.ReasoningLog(
+            agent_id=agent_id, arena_id=arena_id,
+            message=f"[MANUAL TRADE] {action.upper()} {quantity} {symbol} @ ${current_price:.2f}\n\nReasoning: {reasoning}",
+            created_at=datetime.datetime.utcnow(),
         )
         db.add(log)
         db.commit()
@@ -394,391 +261,461 @@ def create_manual_trade(trade_data: dict, db: Session = Depends(get_db)):
         db.rollback()
     return {"status": "ok", "message": f"Manual {action} {quantity} {symbol} @ ${current_price:.2f} submitted"}
 
-# --- User Registration Endpoint ---
 
-@app.post("/users/register")
-def register_user(user_data: dict, db: Session = Depends(get_db)):
-    """Register a user email for copy trading notifications."""
-    email = (user_data.get("email") or "").strip().lower()
-    if not email or "@" not in email:
-        raise HTTPException(status_code=400, detail="Valid email is required")
+@app.get("/agents/logs/{arena_id}")
+def read_agent_logs(arena_id: str, skip: int = 0, limit: int = 50, db: Session = Depends(get_db)):
+    logs = (
+        db.query(models.ReasoningLog)
+        .filter(models.ReasoningLog.arena_id == arena_id)
+        .order_by(models.ReasoningLog.created_at.desc())
+        .offset(skip).limit(limit).all()
+    )
+    agent_cache: Dict[str, str] = {}
+    result = []
+    for log in logs:
+        if log.agent_id not in agent_cache:
+            ag = db.query(models.Agent).filter(models.Agent.id == log.agent_id).first()
+            agent_cache[log.agent_id] = ag.name if ag else log.agent_id
+        result.append({
+            "id": log.id,
+            "agent_id": log.agent_id,
+            "agent_name": agent_cache[log.agent_id],
+            "message": log.message or "",
+            "created_at": log.created_at.isoformat() if log.created_at else None,
+        })
+    return result
 
-    existing = db.query(models.User).filter(models.User.email == email).first()
-    if existing:
-        return {"status": "ok", "message": "Email already registered"}
-
-    user = models.User(email=email)
-    db.add(user)
-    db.commit()
-    return {"status": "ok", "message": "Registration successful! We'll notify you when copy trading is live."}
-
-# --- Existing Endpoints (Updated) ---
-
-@app.get("/trades", response_model=List[schemas.Trade])
-def read_trades(arena_id: Optional[int] = None, skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    query = db.query(models.Trade)
-    if arena_id:
-        query = query.filter(models.Trade.arena_id == arena_id)
-    return query.order_by(models.Trade.timestamp.desc()).offset(skip).limit(limit).all()
-
-@app.get("/logs", response_model=List[schemas.SystemLog])
-def read_logs(arena_id: Optional[int] = None, skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    query = db.query(models.SystemLog)
-    if arena_id:
-        query = query.filter(models.SystemLog.arena_id == arena_id)
-    return query.order_by(models.SystemLog.timestamp.desc()).offset(skip).limit(limit).all()
-
-@app.get("/ai-responses", response_model=List[schemas.AIResponse])
-def read_ai_responses(arena_id: Optional[int] = None, skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    query = db.query(models.AIResponse)
-    if arena_id:
-        query = query.filter(models.AIResponse.arena_id == arena_id)
-    return query.order_by(models.AIResponse.timestamp.desc()).offset(skip).limit(limit).all()
 
 @app.get("/arenas/{arena_id}/leaderboard")
-def read_arena_leaderboard(arena_id: int, db: Session = Depends(get_db)):
-    """Get per-agent leaderboard for an arena, computed from AI responses and trades."""
-
-    # Get distinct agent names that have responded in this arena
-    agent_rows = (
-        db.query(models.AIResponse.agent_name)
-        .filter(models.AIResponse.arena_id == arena_id)
-        .distinct()
-        .all()
-    )
-    agent_names = [row[0] for row in agent_rows if row[0]]
-
-    STARTING_CAPITAL = 100_000.0
+def read_arena_leaderboard(arena_id: str, db: Session = Depends(get_db)):
+    portfolios = db.query(models.Portfolio).filter(models.Portfolio.arena_id == arena_id).all()
     leaderboard = []
-
-    for agent_name in agent_names:
-        # Count trades attributed to this agent (via AI responses that led to trades)
-        # Since trades don't store agent_name, count AI responses as a proxy for activity
-        response_count = (
-            db.query(func.count(models.AIResponse.id))
-            .filter(
-                models.AIResponse.arena_id == arena_id,
-                models.AIResponse.agent_name == agent_name,
-            )
-            .scalar()
-        ) or 0
-
-        # Count actual BUY/SELL trades (not HOLD) from this agent's responses
-        # Parse decision from response text to count real trades
-        responses = (
-            db.query(models.AIResponse.response)
-            .filter(
-                models.AIResponse.arena_id == arena_id,
-                models.AIResponse.agent_name == agent_name,
-            )
-            .all()
-        )
-        trade_count = sum(
-            1 for r in responses
-            if r[0] and (r[0].upper().startswith("[BUY") or r[0].upper().startswith("[SELL"))
-        )
-
-        # Compute total value from portfolio positions
-        # Each agent's portfolio value = cash + holdings
-        # For simplicity, use the agent's trade activity to estimate performance
-        # Look at the response text for portfolio value mentions
-        total_value = STARTING_CAPITAL
-        return_percent = 0.0
-
-        # Try to extract portfolio value from the most recent response
-        latest_response = (
-            db.query(models.AIResponse.response)
-            .filter(
-                models.AIResponse.arena_id == arena_id,
-                models.AIResponse.agent_name == agent_name,
-            )
-            .order_by(models.AIResponse.timestamp.desc())
-            .first()
-        )
-        if latest_response and latest_response[0]:
-            # Extract "total value of $X" or "total value: $X" or "total portfolio value of $X"
-            val_match = re.search(
-                r'total (?:portfolio )?value (?:of |is )?\$?([\d,]+(?:\.\d+)?)',
-                latest_response[0],
-                re.IGNORECASE,
-            )
-            if val_match:
-                try:
-                    total_value = float(val_match.group(1).replace(',', ''))
-                    return_percent = ((total_value - STARTING_CAPITAL) / STARTING_CAPITAL) * 100
-                except (ValueError, ZeroDivisionError):
-                    pass
-
+    for p in portfolios:
+        ag = db.query(models.Agent).filter(models.Agent.id == p.agent_id).first()
+        agent_name = ag.name if ag else p.agent_id
+        avatar_url = ag.avatar_url if ag else ""
+        return_pct = ((p.total_value - STARTING_CAPITAL) / STARTING_CAPITAL) * 100 if p.total_value else 0
         leaderboard.append({
-            "agent_id": agent_name.lower().replace(' ', '_'),
+            "agent_id": p.agent_id,
             "agent_name": agent_name,
-            "return_percent": round(return_percent, 2),
-            "total_value": round(total_value, 2),
-            "trade_count": trade_count,
+            "avatar_url": avatar_url or "",
+            "total_value": round(p.total_value or STARTING_CAPITAL, 2),
+            "return_percent": round(return_pct, 2),
+            "rank": 0,
         })
-
-    # Sort by return_percent descending
     leaderboard.sort(key=lambda x: x["return_percent"], reverse=True)
+    for i, entry in enumerate(leaderboard):
+        entry["rank"] = i + 1
     return leaderboard
 
 
-@app.get("/portfolio")
-def read_portfolio(arena_id: Optional[int] = None, db: Session = Depends(get_db)):
-    """Get portfolio positions for an arena, with computed P&L."""
-    query = db.query(models.Portfolio)
-    if arena_id:
-        query = query.filter(models.Portfolio.arena_id == arena_id)
-    positions = query.all()
-
-    position_list = []
-    total_assets = 0.0
-    total_pnl = 0.0
-    total_realized = 0.0
-
-    for pos in positions:
-        unrealized = (pos.current_price - pos.avg_entry_price) * pos.quantity if pos.quantity > 0 else 0.0
-        market_value = pos.current_price * pos.quantity
-        total_assets += market_value
-        total_pnl += unrealized + pos.realized_pnl
-        total_realized += pos.realized_pnl
-        position_list.append({
-            "id": pos.id,
-            "arena_id": pos.arena_id,
-            "symbol": pos.symbol,
-            "quantity": pos.quantity,
-            "avg_entry_price": round(pos.avg_entry_price, 2),
-            "current_price": round(pos.current_price, 2),
-            "market_value": round(market_value, 2),
-            "unrealized_pnl": round(unrealized, 2),
-            "realized_pnl": round(pos.realized_pnl, 2),
-            "total_invested": round(pos.total_invested, 2),
-            "total_returned": round(pos.total_returned, 2),
-            "updated_at": pos.updated_at.isoformat() if pos.updated_at else None,
+@app.get("/portfolio/all/{arena_id}")
+def read_portfolio_all(arena_id: str, db: Session = Depends(get_db)):
+    portfolios = db.query(models.Portfolio).filter(models.Portfolio.arena_id == arena_id).all()
+    result = []
+    for p in portfolios:
+        ag = db.query(models.Agent).filter(models.Agent.id == p.agent_id).first()
+        agent_name = ag.name if ag else p.agent_id
+        avatar_url = ag.avatar_url if ag else ""
+        return_pct = ((p.total_value - STARTING_CAPITAL) / STARTING_CAPITAL) * 100 if p.total_value else 0
+        holdings = db.query(models.Holding).filter(models.Holding.portfolio_id == p.id).all()
+        holdings_list = [
+            {
+                "symbol": h.symbol,
+                "quantity": h.quantity,
+                "avg_cost": round(h.avg_cost, 2),
+                "current_value": round(h.current_value, 2),
+                "pnl": round(h.pnl, 2),
+            }
+            for h in holdings if h.quantity > 0
+        ]
+        result.append({
+            "agent_id": p.agent_id,
+            "agent_name": agent_name,
+            "avatar_url": avatar_url or "",
+            "cash": round(p.cash or 0, 2),
+            "total_value": round(p.total_value or STARTING_CAPITAL, 2),
+            "return_percent": round(return_pct, 2),
+            "today_pnl": 0.0,
+            "holdings": holdings_list,
         })
+    return result
 
-    return {
-        "arena_id": arena_id,
-        "positions": position_list,
-        "total_assets": round(total_assets, 2),
-        "total_pnl": round(total_pnl, 2),
-        "total_realized_pnl": round(total_realized, 2),
-    }
 
-# --- Portfolio Helper ---
-
-def _update_portfolio(db: Session, trade: models.Trade):
-    """
-    Update portfolio position after a trade is executed.
-    BUY: increases quantity, updates avg entry price (weighted average).
-    SELL: decreases quantity, records realized P&L.
-    Also updates current_price to the latest trade price.
-    """
-    pos = (
-        db.query(models.Portfolio)
-        .filter(
-            models.Portfolio.arena_id == trade.arena_id,
-            models.Portfolio.symbol == trade.symbol,
+@app.get("/portfolio/history/{arena_id}")
+def read_portfolio_history(arena_id: str, db: Session = Depends(get_db)):
+    portfolios = db.query(models.Portfolio).filter(models.Portfolio.arena_id == arena_id).all()
+    result = []
+    for p in portfolios:
+        ag = db.query(models.Agent).filter(models.Agent.id == p.agent_id).first()
+        agent_name = ag.name if ag else p.agent_id
+        return_pct = ((p.total_value - STARTING_CAPITAL) / STARTING_CAPITAL) * 100 if p.total_value else 0
+        history = (
+            db.query(models.PortfolioHistory)
+            .filter(models.PortfolioHistory.portfolio_id == p.id)
+            .order_by(models.PortfolioHistory.timestamp.asc()).all()
         )
-        .first()
-    )
-
-    if pos is None:
-        pos = models.Portfolio(
-            arena_id=trade.arena_id,
-            symbol=trade.symbol,
-            quantity=0.0,
-            avg_entry_price=0.0,
-            current_price=trade.price,
-            total_invested=0.0,
-            total_returned=0.0,
-            realized_pnl=0.0,
-        )
-        db.add(pos)
-
-    if trade.side == "BUY":
-        cost = trade.price * trade.amount
-        new_qty = pos.quantity + trade.amount
-        # Weighted average entry price
-        if new_qty > 0:
-            pos.avg_entry_price = (
-                (pos.avg_entry_price * pos.quantity) + cost
-            ) / new_qty
-        pos.quantity = new_qty
-        pos.total_invested += cost
-    elif trade.side == "SELL":
-        actual_sell_qty = min(trade.amount, pos.quantity)
-        if actual_sell_qty <= 0:
-            # Nothing to sell — update current_price but skip P&L/revenue
-            pos.current_price = trade.price
-            pos.updated_at = datetime.datetime.utcnow()
-            db.commit()
-            return
-        revenue = trade.price * actual_sell_qty
-        # Realize P&L on sold shares
-        pos.realized_pnl += (trade.price - pos.avg_entry_price) * actual_sell_qty
-        pos.quantity -= actual_sell_qty
-        pos.total_returned += revenue
-
-    pos.current_price = trade.price
-    pos.updated_at = datetime.datetime.utcnow()
-    db.commit()
+        history_list = [
+            {
+                "total_value": round(h.total_value, 2),
+                "timestamp": h.timestamp.isoformat() if h.timestamp else None,
+            }
+            for h in history
+        ]
+        result.append({
+            "agent_id": p.agent_id,
+            "agent_name": agent_name,
+            "total_value": round(p.total_value or STARTING_CAPITAL, 2),
+            "return_percent": round(return_pct, 2),
+            "history": history_list,
+        })
+    return result
 
 
-# --- Autonomous Trading Logic ---
+SETTING_MIN_VALUES = {
+    "trading_cycle_seconds": 10,
+    "chat_min_interval": 1,
+    "chat_max_interval": 1,
+    "price_update_interval": 1,
+    "ai_thinking_interval": 60,
+}
 
-def run_cycle(db: Session, arena_id: int):
-    arena = db.query(models.Arena).filter(models.Arena.id == arena_id).first()
-    if not arena:
-        return
 
-    tickers = arena.tickers.split(",")
-    orchestrator = Orchestrator(db)
+@app.get("/settings")
+def read_settings(db: Session = Depends(get_db), _: str = Depends(verify_admin)):
+    seed_settings(db)
+    settings = db.query(models.Setting).all()
+    return [{"key": s.key, "value": s.value, "description": s.description or ""} for s in settings]
 
-    # Collect successful trades and error logs separately to avoid rollback
-    # discarding earlier successful trades when a later symbol fails
-    pending_trades = []
-    pending_error_logs = []
-    symbol_prices = {}  # Track latest prices for all symbols to update portfolio current_price
 
-    for symbol in tickers:
-        symbol = symbol.strip()
+@app.put("/settings/{key}")
+def update_setting(key: str, update: dict, db: Session = Depends(get_db), _: str = Depends(verify_admin)):
+    setting = db.query(models.Setting).filter(models.Setting.key == key).first()
+    if not setting:
+        raise HTTPException(status_code=404, detail=f"Setting '{key}' not found")
+    value = update.get("value", "")
+    if key in SETTING_MIN_VALUES:
         try:
-            market_data = stock_service.get_realtime_data(symbol)
-            symbol_prices[symbol] = market_data["price"]
-            decision = orchestrator.run_trading_cycle(market_data, arena_id)
-
-            if decision == "BUY":
-                pending_trades.append(models.Trade(
-                    arena_id=arena_id,
-                    symbol=symbol,
-                    side=decision,
-                    price=market_data["price"],
-                    amount=10.0
-                ))
-            elif decision == "SELL":
-                # Check portfolio position before creating SELL trade
-                # to avoid phantom sell records when no shares are held
-                pos = db.query(models.Portfolio).filter(
-                    models.Portfolio.arena_id == arena_id,
-                    models.Portfolio.symbol == symbol
-                ).first()
-                sell_qty = min(10.0, pos.quantity) if pos and pos.quantity > 0 else 0
-                if sell_qty > 0:
-                    pending_trades.append(models.Trade(
-                        arena_id=arena_id,
-                        symbol=symbol,
-                        side=decision,
-                        price=market_data["price"],
-                        amount=sell_qty
-                    ))
-        except Exception as e:
-            # Rollback to clear any failed session state (e.g. from orchestrator's
-            # internal db.commit() failure). Safe because pending_trades is a Python
-            # list, not in the DB session, so rollback won't discard collected trades.
-            db.rollback()
-            # Log per-symbol errors but continue processing other symbols
-            pending_error_logs.append(models.SystemLog(
-                arena_id=arena_id,
-                level="ERROR",
-                source="TradingCycle",
-                message=f"Error processing {symbol}: {str(e)}"
-            ))
-
-    # Add all collected trades and error logs in one batch, then commit
-    for trade in pending_trades:
-        db.add(trade)
-    for error_log in pending_error_logs:
-        db.add(error_log)
+            val = int(value)
+        except (ValueError, TypeError):
+            raise HTTPException(status_code=400, detail=f"Setting '{key}' must be a valid integer")
+        if val < SETTING_MIN_VALUES[key]:
+            raise HTTPException(status_code=400, detail=f"Setting '{key}' must be >= {SETTING_MIN_VALUES[key]} seconds")
+    setting.value = value
     db.commit()
+    db.refresh(setting)
+    return {"key": setting.key, "value": setting.value, "description": setting.description or ""}
 
-    # Update portfolio positions based on executed trades
-    for trade in pending_trades:
-        try:
-            _update_portfolio(db, trade)
-        except Exception as e:
-            db.rollback()
-            print(f"Portfolio update error for {trade.symbol} in Arena {arena_id}: {e}")
 
-    # Update current_price for ALL portfolio positions (not just traded ones)
-    # so unrealized P&L reflects latest market prices even on HOLD decisions
+@app.post("/users/register")
+def register_user(user_data: dict, db: Session = Depends(get_db)):
+    email = (user_data.get("email") or "").strip().lower()
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="Valid email is required")
+    existing = db.query(models.User).filter(models.User.email == email).first()
+    if existing:
+        return {"status": "ok", "message": "Email already registered"}
+    user = models.User(email=email)
+    db.add(user)
+    db.commit()
+    return {"status": "ok", "message": "Registration successful!"}
+
+
+@app.get("/admin/table/{table_name}")
+def admin_table_browser(table_name: str, limit: int = 50, offset: int = 0, db: Session = Depends(get_db)):
+    allowed = [
+        "arenas", "agents", "trades", "reasoning_logs", "portfolios",
+        "holdings", "portfolio_history", "settings", "users",
+        "agent_memories", "ai_connection_status", "price_history", "strategy_performance",
+    ]
+    if table_name not in allowed:
+        raise HTTPException(status_code=404, detail=f"Table '{table_name}' not found")
     try:
-        for sym, price in symbol_prices.items():
-            pos = db.query(models.Portfolio).filter(
-                models.Portfolio.arena_id == arena_id,
-                models.Portfolio.symbol == sym
-            ).first()
-            if pos is not None:
-                pos.current_price = price
+        count_result = db.execute(text(f"SELECT COUNT(*) FROM {table_name}"))
+        total = count_result.scalar()
+        result = db.execute(
+            text(f"SELECT * FROM {table_name} LIMIT :limit OFFSET :offset"),
+            {"limit": limit, "offset": offset},
+        )
+        columns = list(result.keys())
+        data = [dict(zip(columns, row)) for row in result.fetchall()]
+        return {"table": table_name, "total": total, "limit": limit, "offset": offset, "columns": columns, "data": data}
+    except Exception as e:
+        return {"table": table_name, "total": 0, "columns": [], "data": [], "error": str(e)}
+
+
+def _update_portfolio(db: Session, agent_id: str, arena_id: str, symbol: str, side: str, quantity: float, price: float, total_value: float):
+    portfolio = db.query(models.Portfolio).filter(
+        models.Portfolio.agent_id == agent_id,
+        models.Portfolio.arena_id == arena_id,
+    ).first()
+    if not portfolio:
+        portfolio = models.Portfolio(
+            agent_id=agent_id, arena_id=arena_id,
+            cash=STARTING_CAPITAL, total_value=STARTING_CAPITAL,
+        )
+        db.add(portfolio)
         db.commit()
-    except Exception as e:
-        db.rollback()
-        print(f"Portfolio price refresh error for Arena {arena_id}: {e}")
-
-    # Run monitoring and self-improvement
+        db.refresh(portfolio)
+    holding = db.query(models.Holding).filter(
+        models.Holding.portfolio_id == portfolio.id,
+        models.Holding.symbol == symbol,
+    ).first()
+    if not holding:
+        holding = models.Holding(
+            portfolio_id=portfolio.id, symbol=symbol,
+            quantity=0.0, avg_cost=0.0, current_value=0.0, pnl=0.0,
+        )
+        db.add(holding)
+    if side == "buy":
+        portfolio.cash -= total_value
+        new_qty = holding.quantity + quantity
+        if new_qty > 0:
+            holding.avg_cost = ((holding.avg_cost * holding.quantity) + total_value) / new_qty
+        holding.quantity = new_qty
+        holding.current_value = holding.quantity * price
+    elif side == "sell":
+        actual_sell = min(quantity, holding.quantity)
+        revenue = actual_sell * price
+        portfolio.cash += revenue
+        holding.pnl += (price - holding.avg_cost) * actual_sell
+        holding.quantity -= actual_sell
+        holding.current_value = holding.quantity * price
+    all_holdings = db.query(models.Holding).filter(models.Holding.portfolio_id == portfolio.id).all()
+    holdings_value = sum(h.current_value for h in all_holdings if h.quantity > 0)
+    portfolio.total_value = portfolio.cash + holdings_value
+    portfolio.updated_at = datetime.datetime.utcnow()
+    holding.updated_at = datetime.datetime.utcnow()
+    db.commit()
     try:
-        monitoring = MonitoringAgent(db)
-        monitoring.check_system_health(arena_id)
-
-        si_agent = SelfImprovementAgent(db)
-        si_agent.analyze_performance(arena_id)
-    except Exception as e:
+        history = models.PortfolioHistory(
+            portfolio_id=portfolio.id,
+            total_value=portfolio.total_value,
+            timestamp=datetime.datetime.utcnow(),
+        )
+        db.add(history)
+        db.commit()
+    except Exception:
         db.rollback()
-        print(f"Post-cycle monitoring error for Arena {arena_id}: {e}")
+
 
 def _get_setting_value(db: Session, key: str, default: int) -> int:
-    """Read a setting from the database, returning default if not found or invalid."""
     try:
         setting = db.query(models.Setting).filter(models.Setting.key == key).first()
         if setting and setting.value:
             val = int(setting.value)
-            # Safety net: enforce minimum of 10s to prevent tight-loop DoS
             return max(val, 10)
     except Exception:
         pass
     return max(default, 10)
 
 
-async def run_autonomous_trading(arena_id: int):
-    """
-    Main trading loop for an arena. Runs indefinitely with:
-    - Proper DB session cleanup (try/finally)
-    - Exponential backoff on repeated failures (caps at 5 min)
-    - Logs errors to DB for visibility
-    - Updates last_successful_cycle for watchdog monitoring
-    - Reads ai_thinking_interval from settings DB on each cycle
-    - Never exits unless arena is deactivated or task is cancelled
-    """
+def run_cycle(db: Session, arena_id: str):
+    arena = db.query(models.Arena).filter(models.Arena.id == arena_id).first()
+    if not arena:
+        return
+    tickers = [t.strip() for t in arena.tickers.split(",") if t.strip()]
+    agents = db.query(models.Agent).all()
+
+    for agent in agents:
+        portfolio = db.query(models.Portfolio).filter(
+            models.Portfolio.agent_id == agent.id,
+            models.Portfolio.arena_id == arena_id,
+        ).first()
+        if not portfolio:
+            portfolio = models.Portfolio(
+                agent_id=agent.id, arena_id=arena_id,
+                cash=STARTING_CAPITAL, total_value=STARTING_CAPITAL,
+            )
+            db.add(portfolio)
+            db.commit()
+            db.refresh(portfolio)
+
+        holdings = db.query(models.Holding).filter(
+            models.Holding.portfolio_id == portfolio.id
+        ).all()
+
+        # Gather price data
+        price_lines = []
+        price_map = {}
+        for ticker in tickers:
+            try:
+                data = stock_service.get_realtime_data(ticker)
+                p = data["price"]
+                change = data.get("price_change", 0)
+                price_map[ticker] = p
+                price_lines.append(f"  {ticker}: ${p:.2f} ({change:+.2f}%)")
+            except Exception:
+                price_lines.append(f"  {ticker}: (price unavailable)")
+
+        # Holdings summary
+        holdings_lines = []
+        for h in holdings:
+            if h.quantity > 0:
+                holdings_lines.append(
+                    f"  {h.symbol}: {h.quantity:.4f} shares @ avg ${h.avg_cost:.2f} (P&L: ${h.pnl:.2f})"
+                )
+
+        # Other agents' recent activity
+        other_logs = (
+            db.query(models.ReasoningLog)
+            .filter(
+                models.ReasoningLog.arena_id == arena_id,
+                models.ReasoningLog.agent_id != agent.id,
+            )
+            .order_by(models.ReasoningLog.created_at.desc())
+            .limit(10).all()
+        )
+        other_activity_lines = []
+        for lg in other_logs:
+            other_ag = db.query(models.Agent).filter(models.Agent.id == lg.agent_id).first()
+            name = other_ag.name if other_ag else lg.agent_id
+            other_activity_lines.append(f"  [{name}]: {(lg.message or '')[:200]}")
+
+        # Leaderboard
+        all_portfolios = db.query(models.Portfolio).filter(
+            models.Portfolio.arena_id == arena_id
+        ).all()
+        sorted_portfolios = sorted(all_portfolios, key=lambda pp: pp.total_value or 0, reverse=True)
+        leaderboard_lines = []
+        for i, pp in enumerate(sorted_portfolios):
+            a = db.query(models.Agent).filter(models.Agent.id == pp.agent_id).first()
+            name = a.name if a else pp.agent_id
+            ret = ((pp.total_value - STARTING_CAPITAL) / STARTING_CAPITAL * 100) if pp.total_value else 0
+            leaderboard_lines.append(f"  {i+1}. {name}: ${pp.total_value:,.2f} ({ret:+.2f}%)")
+
+        # Agent memories
+        memories = (
+            db.query(models.AgentMemory)
+            .filter(models.AgentMemory.agent_id == agent.id)
+            .order_by(models.AgentMemory.created_at.desc())
+            .limit(5).all()
+        )
+        memory_lines = [f"  - {m.content}" for m in memories if m.content]
+
+        return_pct = ((portfolio.total_value - STARTING_CAPITAL) / STARTING_CAPITAL * 100) if portfolio.total_value else 0
+
+        # Build prompts
+        system_prompt = build_system_prompt(agent_name=agent.name, arena_name=arena.name)
+        context_prompt = build_context_prompt(
+            arena_name=arena.name,
+            allowed_tickers=arena.tickers,
+            arena_strategy=arena.prompt or arena.description or "",
+            price_data="\n".join(price_lines),
+            cash=portfolio.cash or 0,
+            total_value=portfolio.total_value or STARTING_CAPITAL,
+            return_pct=return_pct,
+            holdings_data="\n".join(holdings_lines),
+            other_agents_activity="\n".join(other_activity_lines),
+            leaderboard_data="\n".join(leaderboard_lines),
+            agent_memories="\n".join(memory_lines),
+        )
+
+        # Use mock agents for now; replace with real AI API calls later
+        from .agents.mocks import MockAIModel
+        mock_agent = MockAIModel(agent.name)
+        response_text = mock_agent.run({"symbol": tickers[0] if tickers else "", "prices": price_map})
+
+        decision = "hold"
+        if "BUY" in response_text.upper():
+            decision = "buy"
+        elif "SELL" in response_text.upper():
+            decision = "sell"
+
+        chosen_symbol = random.choice(tickers) if tickers else None
+        chosen_price = price_map.get(chosen_symbol, 0) if chosen_symbol else 0
+
+        # Log reasoning
+        log = models.ReasoningLog(
+            agent_id=agent.id,
+            arena_id=arena_id,
+            message=f"[{decision.upper()}] {chosen_symbol or 'N/A'}\n\n{response_text}\n\nSystem Prompt: {system_prompt[:200]}...\nContext: {context_prompt[:300]}...",
+            created_at=datetime.datetime.utcnow(),
+        )
+        db.add(log)
+        db.commit()
+
+        if decision in ("buy", "sell") and chosen_symbol and chosen_price > 0:
+            trade_qty = 10.0
+
+            if decision == "sell":
+                hld = db.query(models.Holding).filter(
+                    models.Holding.portfolio_id == portfolio.id,
+                    models.Holding.symbol == chosen_symbol,
+                ).first()
+                if not hld or hld.quantity <= 0:
+                    continue
+                trade_qty = min(trade_qty, hld.quantity)
+
+            if decision == "buy":
+                cost = chosen_price * trade_qty
+                if cost > (portfolio.cash or 0):
+                    trade_qty = max(1, int((portfolio.cash or 0) / chosen_price))
+                    cost = chosen_price * trade_qty
+                if cost > (portfolio.cash or 0) or trade_qty <= 0:
+                    continue
+
+            total_val = chosen_price * trade_qty
+            trade = models.Trade(
+                agent_id=agent.id, arena_id=arena_id, symbol=chosen_symbol,
+                side=decision, quantity=trade_qty, price=chosen_price,
+                total_value=total_val, reasoning=response_text,
+                created_at=datetime.datetime.utcnow(),
+            )
+            db.add(trade)
+            db.commit()
+
+            try:
+                _update_portfolio(db, agent.id, arena_id, chosen_symbol, decision, trade_qty, chosen_price, total_val)
+            except Exception as e:
+                db.rollback()
+                print(f"Portfolio update error for {agent.name} in Arena {arena_id}: {e}")
+
+
+def _run_cycle_with_own_session(arena_id: str) -> int:
+    """Wrapper that creates its own DB session for run_cycle.
+    Returns the cycle_time setting value so the async caller can sleep."""
+    db = database.SessionLocal()
+    try:
+        arena = db.query(models.Arena).filter(models.Arena.id == arena_id).first()
+        if not arena:
+            print(f"Arena {arena_id} not found.")
+            return -1  # signal to stop
+
+        run_cycle(db, arena_id)
+        cycle_time = _get_setting_value(db, "ai_thinking_interval", 7200)
+        return cycle_time
+    finally:
+        try:
+            db.close()
+        except Exception:
+            pass
+
+
+async def run_autonomous_trading(arena_id: str):
     print(f"Starting autonomous trading cycle for Arena {arena_id}...")
+    # Give server time to finish startup before making blocking HTTP calls
+    await asyncio.sleep(5)
     consecutive_errors = 0
-    max_backoff = 300  # 5 minutes max backoff
+    max_backoff = 300
 
     while True:
-        db = None
         try:
-            db = database.SessionLocal()
-            arena = db.query(models.Arena).filter(models.Arena.id == arena_id).first()
-            if not arena or not arena.is_active:
-                print(f"Arena {arena_id} not found or inactive. Stopping trading loop.")
+            # Run the entire cycle (including DB session) in a thread pool
+            # to avoid blocking the event loop and avoid cross-thread session issues
+            cycle_time = await asyncio.to_thread(_run_cycle_with_own_session, arena_id)
+            if cycle_time < 0:
+                print(f"Arena {arena_id} not found. Stopping trading loop.")
                 break
 
-            run_cycle(db, arena_id)
-
-            # Read the AI thinking interval from the settings table (admin-configurable)
-            # Falls back to arena.cycle_time if the setting doesn't exist
-            cycle_time = _get_setting_value(db, "ai_thinking_interval", arena.cycle_time)
-
-            # Mark successful cycle for watchdog
             last_successful_cycle[arena_id] = datetime.datetime.utcnow()
-            consecutive_errors = 0  # Reset error counter on success
-
-            print(f"Arena {arena_id}: cycle complete, sleeping {cycle_time}s (from settings)")
-            db.close()
-            db = None
+            consecutive_errors = 0
+            print(f"Arena {arena_id}: cycle complete, sleeping {cycle_time}s")
             await asyncio.sleep(cycle_time)
 
         except asyncio.CancelledError:
             print(f"Trading loop for Arena {arena_id} cancelled.")
-            raise  # Re-raise so the task actually gets cancelled
+            raise
 
         except Exception as e:
             consecutive_errors += 1
@@ -786,120 +723,76 @@ async def run_autonomous_trading(arena_id: int):
             error_msg = f"Error in trading cycle for Arena {arena_id} (attempt #{consecutive_errors}): {e}"
             print(error_msg)
             print(traceback.format_exc())
-
-            # Try to log error to DB
+            # Log the error to DB in a separate thread too
             try:
-                if db is None:
-                    db = database.SessionLocal()
-                else:
-                    db.rollback()
-                error_log = models.SystemLog(
-                    arena_id=arena_id,
-                    level="ERROR",
-                    source="TradingLoop",
-                    message=error_msg
-                )
-                db.add(error_log)
-                db.commit()
+                def _log_error():
+                    db2 = database.SessionLocal()
+                    try:
+                        error_log = models.ReasoningLog(
+                            agent_id="system", arena_id=arena_id,
+                            message=f"[ERROR] {error_msg}",
+                            created_at=datetime.datetime.utcnow(),
+                        )
+                        db2.add(error_log)
+                        db2.commit()
+                    except Exception:
+                        pass
+                    finally:
+                        try:
+                            db2.close()
+                        except Exception:
+                            pass
+                await asyncio.to_thread(_log_error)
             except Exception:
-                pass  # DB logging failed too, just continue
-
-            # Close DB session before sleeping to avoid holding connection during backoff
-            if db is not None:
-                try:
-                    db.close()
-                except Exception:
-                    pass
-                db = None
-
+                pass
             await asyncio.sleep(backoff)
-
-        finally:
-            if db is not None:
-                try:
-                    db.close()
-                except Exception:
-                    pass
 
 
 async def trading_watchdog():
-    """
-    Watchdog process that runs every 60 seconds and:
-    1. Checks if any trading tasks have died (task.done())
-    2. Checks if any active arenas are missing a running task
-    3. Checks if any trading loop is stale (no successful cycle recently)
-    4. Automatically restarts dead/stale trading loops
-    5. Logs all restarts to DB for audit trail
-    """
-    print("Trading watchdog started. Monitoring trading loops...")
-    await asyncio.sleep(30)  # Initial delay to let things start up
+    print("Trading watchdog started.")
+    await asyncio.sleep(30)
 
     while True:
         db = None
         try:
             db = database.SessionLocal()
-            arenas = db.query(models.Arena).filter(models.Arena.is_active == 1).all()
+            arenas = db.query(models.Arena).all()
             now = datetime.datetime.utcnow()
 
             for arena in arenas:
                 needs_restart = False
                 reason = ""
-
-                # Check 1: Task doesn't exist
                 if arena.id not in running_tasks:
                     needs_restart = True
                     reason = "no task found"
-
-                # Check 2: Task exists but is done (crashed)
                 elif running_tasks[arena.id].done():
                     needs_restart = True
-                    # Retrieve exception if any
                     try:
                         exc = running_tasks[arena.id].exception()
                         reason = f"task crashed: {exc}"
                     except (asyncio.CancelledError, asyncio.InvalidStateError):
                         reason = "task was cancelled or in invalid state"
-
-                # Check 3: Task is running but has never had a successful cycle
                 elif arena.id not in last_successful_cycle:
                     needs_restart = True
                     reason = "no successful cycle ever recorded"
-
-                # Check 4: Task is running but stale (no successful cycle recently)
                 else:
-                    actual_cycle = _get_setting_value(db, "ai_thinking_interval", arena.cycle_time)
-                    effective_threshold = max(WATCHDOG_STALE_THRESHOLD, actual_cycle + 120)  # ai_thinking_interval + 2 min buffer
+                    actual_cycle = _get_setting_value(db, "ai_thinking_interval", 7200)
+                    effective_threshold = max(WATCHDOG_STALE_THRESHOLD, actual_cycle + 120)
                     elapsed = (now - last_successful_cycle[arena.id]).total_seconds()
                     if elapsed > effective_threshold:
                         needs_restart = True
-                        reason = f"stale - no successful cycle for {int(elapsed)}s (threshold: {effective_threshold}s)"
+                        reason = f"stale - no cycle for {int(elapsed)}s"
 
                 if needs_restart:
-                    print(f"Watchdog: Restarting trading for Arena {arena.id} ({arena.name}). Reason: {reason}")
-
-                    # Cancel old task if it exists — del immediately to prevent
-                    # concurrent restart_trading/update_arena from racing with us
+                    print(f"Watchdog: Restarting Arena {arena.id}. Reason: {reason}")
                     if arena.id in running_tasks:
                         running_tasks[arena.id].cancel()
                         del running_tasks[arena.id]
-
-                    # Start fresh task and give it a grace period
                     running_tasks[arena.id] = asyncio.create_task(run_autonomous_trading(arena.id))
-                    last_successful_cycle[arena.id] = datetime.datetime.utcnow()  # Grace period for new task
+                    last_successful_cycle[arena.id] = datetime.datetime.utcnow()
 
-                    # Log the watchdog restart
-                    log = models.SystemLog(
-                        arena_id=arena.id,
-                        level="WARNING",
-                        source="Watchdog",
-                        message=f"Auto-restarted trading loop. Reason: {reason}"
-                    )
-                    db.add(log)
-
-            db.commit()
             db.close()
             db = None
-
         except asyncio.CancelledError:
             raise
         except Exception as e:
@@ -910,5 +803,4 @@ async def trading_watchdog():
                     db.close()
                 except Exception:
                     pass
-
-        await asyncio.sleep(60)  # Check every 60 seconds
+        await asyncio.sleep(60)

@@ -1,107 +1,120 @@
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict
 from datetime import datetime
 from typing import Optional, List
+
 
 class ArenaBase(BaseModel):
     name: str
     tickers: str
-    cycle_time: int = Field(default=10, ge=1, le=3600)
-    is_active: bool = True
     tags: Optional[str] = ""
     description: Optional[str] = ""
-    rule: Optional[str] = ""
-    prompt_text: Optional[str] = ""
+    rules: Optional[str] = ""
+    prompt: Optional[str] = ""
+
 
 class ArenaCreate(ArenaBase):
-    pass
+    id: Optional[str] = None
 
-class ArenaUpdate(BaseModel):
-    name: Optional[str] = None
-    tickers: Optional[str] = None
-    cycle_time: Optional[int] = Field(default=None, ge=1, le=3600)
-    is_active: Optional[bool] = None
-    tags: Optional[str] = None
-    description: Optional[str] = None
-    rule: Optional[str] = None
-    prompt_text: Optional[str] = None
 
 class Arena(ArenaBase):
-    id: int
+    id: str
+    created_at: Optional[datetime] = None
     model_config = ConfigDict(from_attributes=True)
 
+
 class TradeBase(BaseModel):
-    arena_id: int
+    agent_id: str
+    arena_id: str
     symbol: str
     side: str
+    quantity: float
     price: float
-    amount: float
+    total_value: float
+    reasoning: Optional[str] = ""
+
 
 class TradeCreate(TradeBase):
     pass
 
+
 class Trade(TradeBase):
     id: int
-    timestamp: datetime
+    created_at: Optional[datetime] = None
     model_config = ConfigDict(from_attributes=True)
 
-class SystemLogBase(BaseModel):
-    arena_id: Optional[int] = None
-    level: str
-    source: str
+
+class ReasoningLogBase(BaseModel):
+    agent_id: str
+    arena_id: str
     message: str
 
-class SystemLogCreate(SystemLogBase):
-    pass
 
-class SystemLog(SystemLogBase):
+class ReasoningLog(ReasoningLogBase):
     id: int
-    timestamp: datetime
+    created_at: Optional[datetime] = None
     model_config = ConfigDict(from_attributes=True)
 
-class AIResponseBase(BaseModel):
-    arena_id: int
-    agent_name: str
-    prompt: str
-    response: str
-
-class AIResponseCreate(AIResponseBase):
-    pass
-
-class AIResponse(AIResponseBase):
-    id: int
-    timestamp: datetime
-    model_config = ConfigDict(from_attributes=True)
 
 class SettingBase(BaseModel):
     key: str
     value: str
     description: str = ""
 
+
 class SettingUpdate(BaseModel):
     value: str
 
+
 class Setting(SettingBase):
-    id: int
     model_config = ConfigDict(from_attributes=True)
 
-class PortfolioBase(BaseModel):
-    arena_id: int
+
+class HoldingBase(BaseModel):
+    portfolio_id: int
     symbol: str
     quantity: float
-    avg_entry_price: float
-    current_price: float
-    total_invested: float
-    total_returned: float
-    realized_pnl: float
+    avg_cost: float
+    current_value: float
+    pnl: float
+
+
+class Holding(HoldingBase):
+    id: int
+    updated_at: Optional[datetime] = None
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PortfolioBase(BaseModel):
+    agent_id: str
+    arena_id: str
+    cash: float
+    total_value: float
+
 
 class Portfolio(PortfolioBase):
     id: int
-    updated_at: datetime
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
     model_config = ConfigDict(from_attributes=True)
 
-class PortfolioSummary(BaseModel):
-    arena_id: int
-    positions: List["Portfolio"]
-    total_assets: float       # Sum of current_price * quantity for all positions
-    total_pnl: float          # Sum of unrealized + realized P&L
-    total_realized_pnl: float # Sum of realized P&L only
+
+class PortfolioHistoryBase(BaseModel):
+    portfolio_id: int
+    total_value: float
+
+
+class PortfolioHistory(PortfolioHistoryBase):
+    id: int
+    timestamp: Optional[datetime] = None
+    model_config = ConfigDict(from_attributes=True)
+
+
+class UserBase(BaseModel):
+    email: str
+
+
+class User(UserBase):
+    id: int
+    verified: bool = False
+    created_at: Optional[datetime] = None
+    model_config = ConfigDict(from_attributes=True)
