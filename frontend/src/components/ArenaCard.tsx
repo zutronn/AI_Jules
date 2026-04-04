@@ -15,19 +15,31 @@ interface ArenaCardProps {
 const ArenaCard: React.FC<ArenaCardProps> = ({ arena, onSelect, apiBaseUrl }) => {
   const tags = Array.isArray(arena.tags) ? arena.tags : (arena.tags || '').split(',').filter(t => t.trim() !== '');
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [tradeCounts, setTradeCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
-    const fetchLeaderboard = async () => {
+    const fetchData = async () => {
       try {
-        const res = await axios.get(`${apiBaseUrl}/arenas/${arena.id}/leaderboard`);
-        if (Array.isArray(res.data)) {
-          setLeaderboard(res.data.slice(0, 3));
+        const [lbRes, tradesRes] = await Promise.all([
+          axios.get(`${apiBaseUrl}/arenas/${arena.id}/leaderboard`).catch(() => ({ data: [] })),
+          axios.get(`${apiBaseUrl}/trades/${arena.id}?limit=1000`).catch(() => ({ data: [] })),
+        ]);
+        if (Array.isArray(lbRes.data)) {
+          setLeaderboard(lbRes.data.slice(0, 3));
         }
+        // Count trades per agent from the trades endpoint
+        const trades = Array.isArray(tradesRes.data) ? tradesRes.data : [];
+        const counts: Record<string, number> = {};
+        for (const t of trades) {
+          const agentId = t.agent_id || t.agent_name || '';
+          counts[agentId] = (counts[agentId] || 0) + 1;
+        }
+        setTradeCounts(counts);
       } catch (error) {
-        console.error(`Error fetching leaderboard for arena ${arena.id}:`, error);
+        console.error(`Error fetching data for arena ${arena.id}:`, error);
       }
     };
-    fetchLeaderboard();
+    fetchData();
   }, [arena.id, apiBaseUrl]);
 
   const formatPct = (val: number | null | undefined) => {
@@ -87,7 +99,7 @@ const ArenaCard: React.FC<ArenaCardProps> = ({ arena, onSelect, apiBaseUrl }) =>
           </thead>
           <tbody>
             {leaderboard.length > 0 ? leaderboard.map((agent: any, i: number) => {
-              const tradeCount = agent.trade_count ?? 0;
+              const tradeCount = agent.trade_count ?? tradeCounts[agent.agent_id] ?? 0;
               const survivalRate = tradeCount === 0 ? '-' : Math.max(0, Math.min(99, Math.round(99 - (i / Math.max(leaderboard.length - 1, 1)) * 99)));
               return (
                 <tr key={agent.agent_id || i} className="bg-gray-50 rounded">
