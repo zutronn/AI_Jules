@@ -7,6 +7,8 @@ import ArenaCard from './components/ArenaCard';
 import Hero from './components/Hero';
 import ArenaForm from './components/ArenaForm';
 import AdminPage from './components/AdminPage';
+import ManualTradePage from './components/ManualTradePage';
+import RegisterPage from './components/RegisterPage';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
@@ -18,7 +20,7 @@ function App() {
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [portfolioHistory, setPortfolioHistory] = useState<any[]>([]);
   const [portfolio, setPortfolio] = useState<any>(null);
-  const [view, setView] = useState<'home' | 'detail' | 'admin'>('home');
+  const [view, setView] = useState<'home' | 'detail' | 'admin' | 'manual-trade' | 'register'>('home');
   const [aiStatus, setAiStatus] = useState<any>(null);
 
   const fetchArenas = async () => {
@@ -126,6 +128,14 @@ function App() {
     setView('admin');
   };
 
+  const handleOpenManualTrade = () => {
+    setView('manual-trade');
+  };
+
+  const handleOpenRegister = () => {
+    setView('register');
+  };
+
   const selectedArena = Array.isArray(arenas) ? arenas.find(a => a.id === selectedArenaId) : undefined;
 
   const agents = aiStatus?.agents || [];
@@ -216,6 +226,10 @@ function App() {
 
       {view === 'admin' ? (
         <AdminPage onBack={handleBackToHome} />
+      ) : view === 'manual-trade' && selectedArenaId ? (
+        <ManualTradePage arenaId={selectedArenaId} arenaName={selectedArena?.name || 'Arena'} onBack={() => setView('detail')} />
+      ) : view === 'register' ? (
+        <RegisterPage arenaId={selectedArenaId || undefined} arenaName={selectedArena?.name} onBack={() => selectedArenaId ? setView('detail') : setView('home')} />
       ) : view === 'home' ? (
         <main className="max-w-7xl mx-auto px-8 py-12">
           <Hero />
@@ -390,6 +404,22 @@ function App() {
                     </div>
                   </div>
                 </div>
+
+                {/* Manual Trade & Register Buttons */}
+                <div className="space-y-2 mt-6">
+                  <button
+                    onClick={handleOpenManualTrade}
+                    className="w-full bg-orange-600 text-white py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-orange-100 hover:bg-orange-700 transition-all"
+                  >
+                    Manual Trade
+                  </button>
+                  <button
+                    onClick={handleOpenRegister}
+                    className="w-full bg-gray-900 text-white py-2.5 rounded-xl font-bold text-sm hover:bg-gray-800 transition-all"
+                  >
+                    Copy Trading →
+                  </button>
+                </div>
               </div>
             )}
           </aside>
@@ -406,6 +436,8 @@ function App() {
                     {leaderboard.length > 0 ? leaderboard.map((agent: any, i: number) => {
                       const returnPct = agent.return_percent ?? 0;
                       const isPositive = returnPct >= 0;
+                      const tradeCount = agent.trade_count ?? 0;
+                      const survivalRate = tradeCount === 0 ? '-' : Math.max(0, Math.min(99, Math.round(99 - (i / Math.max(leaderboard.length - 1, 1)) * 99)));
                       const colors = ['bg-blue-500', 'bg-purple-500', 'bg-red-500', 'bg-yellow-500', 'bg-green-500', 'bg-pink-500'];
                       return (
                         <div key={agent.agent_id || i} className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-2xl transition-colors">
@@ -418,12 +450,15 @@ function App() {
                               <p className={`text-xs font-black ${isPositive ? 'text-green-500' : 'text-red-500'}`}>
                                 {isPositive ? '+' : ''}{returnPct.toFixed(2)}%
                               </p>
-                              <p className="text-[10px] text-gray-400">${(agent.total_value ?? 100000).toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
+                              <p className="text-[10px] text-gray-400">
+                                ${(agent.total_value ?? 100000).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                <span className="ml-2">Survival: <span className={`font-bold ${survivalRate === '-' ? 'text-gray-400' : typeof survivalRate === 'number' && survivalRate >= 50 ? 'text-green-500' : 'text-red-400'}`}>{survivalRate === '-' ? '-' : `${survivalRate}%`}</span></span>
+                              </p>
                             </div>
                           </div>
                           <div className="flex items-center space-x-2">
                             <span className="text-xs font-bold text-gray-400">#{i + 1}</span>
-                            <button className="bg-orange-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg shadow-orange-100">
+                            <button onClick={handleOpenRegister} className="bg-orange-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg shadow-orange-100">
                               Copy Trading →
                             </button>
                           </div>

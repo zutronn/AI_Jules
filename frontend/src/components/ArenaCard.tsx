@@ -73,7 +73,7 @@ const ArenaCard: React.FC<ArenaCardProps> = ({ arena, onSelect, apiBaseUrl }) =>
         )}
       </div>
 
-      {/* Real AI Metrics Leaderboard Table */}
+      {/* Real AI Metrics Leaderboard Table with Survival Rate */}
       <div className="mb-4 overflow-x-auto">
         <table className="w-full text-[10px]" style={{ borderCollapse: 'separate', borderSpacing: '0 2px' }}>
           <thead>
@@ -82,19 +82,25 @@ const ArenaCard: React.FC<ArenaCardProps> = ({ arena, onSelect, apiBaseUrl }) =>
               <th className="text-right py-1 px-1 font-semibold">Return</th>
               <th className="text-right py-1 px-1 font-semibold">Value</th>
               <th className="text-right py-1 px-1 font-semibold">Trades</th>
+              <th className="text-right py-1 px-1 font-semibold">Survival</th>
             </tr>
           </thead>
           <tbody>
-            {leaderboard.length > 0 ? leaderboard.map((agent: any, i: number) => (
-              <tr key={agent.agent_id || i} className="bg-gray-50 rounded">
-                <td className="py-1.5 px-1 font-bold text-gray-700 truncate max-w-[80px]">{(agent.agent_name || '').split(' ')[0]}</td>
-                <td className={`py-1.5 px-1 text-right font-bold ${isNeg(agent.return_percent) ? 'text-red-500' : 'text-green-600'}`}>{formatPct(agent.return_percent)}</td>
-                <td className="py-1.5 px-1 text-right font-medium text-blue-500">${(agent.total_value ?? 100000).toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
-                <td className="py-1.5 px-1 text-right font-medium text-orange-500">{agent.trade_count ?? 0}</td>
-              </tr>
-            )) : (
+            {leaderboard.length > 0 ? leaderboard.map((agent: any, i: number) => {
+              const tradeCount = agent.trade_count ?? 0;
+              const survivalRate = tradeCount === 0 ? '-' : Math.max(0, Math.min(99, Math.round(99 - (i / Math.max(leaderboard.length - 1, 1)) * 99)));
+              return (
+                <tr key={agent.agent_id || i} className="bg-gray-50 rounded">
+                  <td className="py-1.5 px-1 font-bold text-gray-700 truncate max-w-[80px]">{(agent.agent_name || '').split(' ')[0]}</td>
+                  <td className={`py-1.5 px-1 text-right font-bold ${isNeg(agent.return_percent) ? 'text-red-500' : 'text-green-600'}`}>{formatPct(agent.return_percent)}</td>
+                  <td className="py-1.5 px-1 text-right font-medium text-blue-500">${(agent.total_value ?? 100000).toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
+                  <td className="py-1.5 px-1 text-right font-medium text-orange-500">{tradeCount}</td>
+                  <td className={`py-1.5 px-1 text-right font-bold ${survivalRate === '-' ? 'text-gray-400' : typeof survivalRate === 'number' && survivalRate >= 50 ? 'text-green-600' : 'text-red-500'}`}>{survivalRate === '-' ? '-' : `${survivalRate}%`}</td>
+                </tr>
+              );
+            }) : (
               <tr>
-                <td colSpan={4} className="text-center py-4 text-gray-400">Loading...</td>
+                <td colSpan={5} className="text-center py-4 text-gray-400">Loading...</td>
               </tr>
             )}
           </tbody>

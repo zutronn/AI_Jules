@@ -51,6 +51,14 @@ class Setting(Base):
     value = Column(String, default="")
     description = Column(String, default="")
 
+class User(Base):
+    __tablename__ = "users"
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String, unique=True, index=True)
+    verified = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+
 class Portfolio(Base):
     __tablename__ = "portfolio"
     id = Column(Integer, primary_key=True, index=True)

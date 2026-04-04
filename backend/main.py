@@ -284,6 +284,63 @@ def update_setting(key: str, update: schemas.SettingUpdate, db: Session = Depend
     db.refresh(setting)
     return {"key": setting.key, "value": setting.value, "description": setting.description}
 
+# --- Manual Trading Endpoint ---
+
+@app.post("/trades/manual")
+def create_manual_trade(trade_data: dict, db: Session = Depends(get_db)):
+    """Submit a manual trade to compete with AI agents."""
+    arena_id = trade_data.get("arena_id")
+    agent_id = trade_data.get("agent_id", "human")
+    action = trade_data.get("action", "").lower()
+    symbol = trade_data.get("symbol", "")
+    quantity = trade_data.get("quantity", 0)
+    reasoning = trade_data.get("reasoning", "")
+
+    if action not in ("buy", "sell"):
+        raise HTTPException(status_code=400, detail="Action must be 'buy' or 'sell'")
+    if not symbol or quantity <= 0:
+        raise HTTPException(status_code=400, detail="Symbol and positive quantity are required")
+
+    trade = models.Trade(
+        arena_id=arena_id,
+        symbol=symbol,
+        side=action.upper(),
+        price=0,  # Will be filled by the trading engine with current market price
+        amount=quantity,
+        timestamp=datetime.datetime.utcnow(),
+    )
+    db.add(trade)
+
+    # Also log the reasoning
+    log = models.SystemLog(
+        arena_id=arena_id,
+        level="INFO",
+        source=f"Manual:{agent_id}",
+        message=f"[{action.upper()}] {symbol} x{quantity} — {reasoning}",
+        timestamp=datetime.datetime.utcnow(),
+    )
+    db.add(log)
+    db.commit()
+    return {"status": "ok", "message": f"Manual {action} {quantity} {symbol} submitted"}
+
+# --- User Registration Endpoint ---
+
+@app.post("/users/register")
+def register_user(user_data: dict, db: Session = Depends(get_db)):
+    """Register a user email for copy trading notifications."""
+    email = (user_data.get("email") or "").strip().lower()
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="Valid email is required")
+
+    existing = db.query(models.User).filter(models.User.email == email).first()
+    if existing:
+        return {"status": "ok", "message": "Email already registered"}
+
+    user = models.User(email=email)
+    db.add(user)
+    db.commit()
+    return {"status": "ok", "message": "Registration successful! We'll notify you when copy trading is live."}
+
 # --- Existing Endpoints (Updated) ---
 
 @app.get("/trades", response_model=List[schemas.Trade])
