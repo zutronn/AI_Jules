@@ -52,8 +52,8 @@ function App() {
     if (selectedArenaId === null) return;
     try {
       const [tradesRes, logsRes, leaderboardRes, historyRes, portfolioAllRes] = await Promise.all([
-        axios.get(`${API_BASE_URL}/trades/${selectedArenaId}`).catch(() => ({ data: [] })),
-        axios.get(`${API_BASE_URL}/agents/logs/${selectedArenaId}`).catch(() => ({ data: [] })),
+        axios.get(`${API_BASE_URL}/trades/${selectedArenaId}?limit=1000`).catch(() => ({ data: [] })),
+        axios.get(`${API_BASE_URL}/agents/logs/${selectedArenaId}?limit=1000`).catch(() => ({ data: [] })),
         axios.get(`${API_BASE_URL}/arenas/${selectedArenaId}/leaderboard`).catch(() => ({ data: [] })),
         axios.get(`${API_BASE_URL}/portfolio/history/${selectedArenaId}`).catch(() => ({ data: [] })),
         axios.get(`${API_BASE_URL}/portfolio/all/${selectedArenaId}`).catch(() => ({ data: [] })),
