@@ -7,3 +7,4 @@ pydantic-settings
 requests
 pytest
 httpx
+anthropic>=0.40.0

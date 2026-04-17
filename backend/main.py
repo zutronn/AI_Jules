@@ -703,18 +703,32 @@ def run_cycle(db: Session, arena_id: str):
             agent_memories="\n".join(memory_lines),
         )
 
-        # Use mock agents for now; replace with real AI API calls later
-        from agents.mocks import MockAIModel
-        mock_agent = MockAIModel(agent.name)
-        response_text = mock_agent.run({"symbol": tickers[0] if tickers else "", "prices": price_map})
+        from agents.llm_client import call_agent
+        agent_key = f"{arena_id}:{agent.id}"
+        llm_result = call_agent(system_prompt, context_prompt, agent_key)
 
-        decision = "hold"
-        if "BUY" in response_text.upper():
-            decision = "buy"
-        elif "SELL" in response_text.upper():
-            decision = "sell"
-
-        chosen_symbol = random.choice(tickers) if tickers else None
+        if llm_result:
+            decision = llm_result.get("action", "hold").lower()
+            if decision not in ("buy", "sell", "hold"):
+                decision = "hold"
+            chosen_symbol = llm_result.get("symbol") or (random.choice(tickers) if tickers else None)
+            response_text = llm_result.get("reasoning", f"[LLM] {decision.upper()}")
+            if llm_result.get("learnings"):
+                db.add(models.AgentMemory(
+                    agent_id=agent.id,
+                    content=str(llm_result["learnings"])[:500],
+                    created_at=datetime.datetime.utcnow(),
+                ))
+        else:
+            from agents.mocks import MockAIModel
+            mock_agent = MockAIModel(agent.name)
+            response_text = mock_agent.run({"symbol": tickers[0] if tickers else "", "prices": price_map})
+            decision = "hold"
+            if "BUY" in response_text.upper():
+                decision = "buy"
+            elif "SELL" in response_text.upper():
+                decision = "sell"
+            chosen_symbol = random.choice(tickers) if tickers else None
         chosen_price = price_map.get(chosen_symbol, 0) if chosen_symbol else 0
 
         # Log reasoning
