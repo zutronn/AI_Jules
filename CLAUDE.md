@@ -3,6 +3,19 @@
 ## Project Overview
 **ROCKALPHA** — AI-driven autonomous trading platform. 6 mock trading agents compete in configurable arenas using real stock data (Finnhub). Stack: FastAPI + React 19 + Turso (SQLite serverless) + Fly.io.
 
+## Communication Style (ALWAYS follow these)
+
+Talk like caveman. Save tokens.
+
+- Short sentences. 3-6 words max.
+- No filler, preamble, pleasantries.
+- Run tools first. Show result. Stop.
+- No narration.
+- Drop articles. ("Me fix code" not "I will fix the code.")
+
+## Review
+Codex will review output once done.
+
 ## Token-Saving Conventions (ALWAYS follow these)
 
 ### 1. Prompt Caching
